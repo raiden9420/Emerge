@@ -11,20 +11,39 @@ export async function generateGoalSuggestions(user: User, count = 5): Promise<st
       return getFallbackGoals(user.subjects?.[0] || "");
     }
 
+    const subjectsString = user.subjects?.join(", ") || "";
+    const prompt = `Suggest ${count} specific and actionable career development goals focused on the subjects: ${subjectsString}
+    Consider these aspects - Current Skills: ${user.skills}, Interests: ${user.interests}
+    Their thinking style is: ${user.thinking_style} and career goal is: ${user.goal}
+
+    Based on the user's thinking style and career goals, suggest varied career development activities like:
+    - Industry research and analysis
+    - Skill-building exercises
+    - Portfolio development
+    - Professional networking
+    - Personal branding
+    - Technical learning
+    - Career exploration
+
+    Requirements for goals:
+    - Must be achievable in 1-2 hours
+    - Should be specific and actionable
+    - Vary between different types of activities
+    - Focus on career exploration and professional development in the subject field
+    - Should help understand career paths and opportunities
+    - Include industry-relevant skills or knowledge
+    - Be specific and measurable
+    - Example: "Research 2 companies hiring ${subjectsString.split(',')[0]} professionals and list their requirements"
+
+    Format the response as a JSON array of strings.`;
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
           {
-            parts: [
-              {
-                text: `Generate ${count} specific, actionable career development goals for a student interested in ${user.subjects?.join(", ")} 
-                with skills in ${user.skills} and interests in ${user.interests}. 
-                Their current goal is: ${user.goal}. 
-                Keep each goal under 10 words and very specific. Format as a JSON array of strings.`
-              }
-            ]
+            parts: [{ text: prompt }]
           }
         ],
         generationConfig: {
