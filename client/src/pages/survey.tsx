@@ -74,42 +74,26 @@ export default function Survey() {
   // Handle form submission
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
+    const userId = localStorage.getItem('userId');
 
     try {
-      // Check if we have a user ID in localStorage (for existing users)
-      const existingUserId = localStorage.getItem('userId');
-      
-      // Make sure subjects is an array
-      const formattedValues = {
-        ...values,
-        username: values.email, // Use email as username for simplicity
-        password: "password123", // Default password in a real app this would be set by user
-        // Ensure subjects is an array even if it's empty
-        subjects: Array.isArray(values.subjects) ? values.subjects : [],
-        // Include user_id if it exists (for profile updates)
-        user_id: existingUserId ? parseInt(existingUserId) : undefined
-      };
-      
-      console.log('Submitting survey with data:', formattedValues);
-      
-      // Call our Express API
-      const response = await fetch('/api/survey', {
-        method: 'POST',
+      const response = await fetch('/api/user/' + userId, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedValues),
+        body: JSON.stringify(values),
       });
 
       console.log('Survey submission response status:', response.status);
-      
+
       const responseText = await response.text();
       console.log('Response text:', responseText);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}, message: ${responseText}`);
       }
-      
+
       let data;
       try {
         data = JSON.parse(responseText);
@@ -120,24 +104,17 @@ export default function Survey() {
 
       if (data && data.success) {
         toast({
-          title: "Survey Submitted!",
-          description: "Your career journey is ready to begin.",
+          title: "Profile Updated!",
+          description: "Your profile has been updated.",
         });
-
-        // Save the userId in localStorage for future reference
-        if (data.userId) {
-          localStorage.setItem('userId', data.userId.toString());
-        }
-
-        // Redirect to dashboard
         navigate("/dashboard");
       } else {
-        throw new Error(data.message || "Failed to submit survey");
+        throw new Error(data.message || "Failed to update profile");
       }
     } catch (error) {
-      console.error("Error submitting survey:", error);
+      console.error("Error updating profile:", error);
       toast({
-        title: "Submission Failed",
+        title: "Update Failed",
         description: error instanceof Error ? error.message : "Please try again later.",
         variant: "destructive",
       });
@@ -453,7 +430,7 @@ export default function Survey() {
                     Processing...
                   </>
                 ) : (
-                  "Start My Career Journey"
+                  "Update My Profile"
                 )}
               </Button>
             </form>

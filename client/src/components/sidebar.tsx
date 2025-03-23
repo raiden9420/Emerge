@@ -140,9 +140,9 @@ export function Sidebar({ user }: SidebarProps) {
           
           {/* Bottom Section */}
           <div className="p-4 border-t border-sidebar-border">
-            <Link href="/settings">
+            <Link href="/survey">
               <a className={`flex items-center px-3 py-2 w-full text-sm font-medium rounded-md ${
-                location === '/settings' 
+                location === '/survey' 
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               } transition-colors`}>
