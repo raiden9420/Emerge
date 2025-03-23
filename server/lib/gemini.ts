@@ -10,7 +10,7 @@ export async function suggestGoals(subjects: string[], skills: string, interests
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const subjectsString = subjects.join(", ");
-    const prompt = `Suggest 1 specific and actionable career development goal focused on the subjects: ${subjectsString}
+    const prompt = `Suggest ${count} specific and actionable career development goals focused on the subjects: ${subjectsString}
 Consider these aspects - Current Skills: ${skills}, Interests: ${interests}
 
 Based on the user's thinking style and career goals, suggest varied career development activities like:
@@ -36,23 +36,21 @@ Format as JSON array of strings. Example:
 ["Complete 3 linear algebra practice problems", "Write a 1-page summary of photosynthesis process"]
 
 Response must be only the JSON array, no other text.`;
-
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log("Raw Gemini response for goals:", text);
-
     try {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.slice(0, 1);
+        return parsed.slice(0, count);
       }
     } catch (e) {
       const match = text.match(/\[[\s\S]*\]/);
       if (match) {
         try {
           const goals = JSON.parse(match[0]);
-          return Array.isArray(goals) && goals.length > 0 ? [goals[0]] : [];
+          return Array.isArray(goals) && goals.length > 0 ? goals.slice(0, count) : [];
         } catch (parseError) {
           console.error("Error parsing Gemini response:", parseError);
         }
@@ -68,10 +66,6 @@ Response must be only the JSON array, no other text.`;
 }
 
 export async function getCourseRecommendation(profile: any) {
-  if (!profile) {
-    return { success: false, message: "Profile data is required" };
-  }
-
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = `Based on this user profile with subjects: ${profile.subjects.join(", ")}, interests: ${profile.interests}, and skills: ${profile.skills}, recommend a real, currently available Udemy course.
@@ -95,7 +89,6 @@ Example format:
   "platform": "Coursera",
   "url": "https://www.coursera.org/specializations/python"
 }`;
-
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
@@ -140,6 +133,18 @@ Example format:
       success: false, 
       message: error instanceof Error ? error.message : "Failed to generate course recommendation"
     };
+  }
+}
+
+export async function getChatResponse(message: string, userData: any): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const result = await model.generateContent(message);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error("Chat response error:", error);
+    return "I apologize, but I'm having trouble generating a response right now.";
   }
 }
 
