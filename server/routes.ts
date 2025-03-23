@@ -4,7 +4,7 @@ import { db } from './db';
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertUserSchema, insertGoalSchema, insertActivitySchema, insertChatSchema, insertRecommendationSchema } from "@shared/schema";
-import { suggestGoals, getCourseRecommendation, getChatResponse } from "./lib/gemini";
+import { suggestGoals, getChatResponse } from "./lib/gemini";
 import { fetchYoutubeRecommendations } from "./lib/youtube";
 import { User } from '@shared/schema';
 
@@ -825,8 +825,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Generate a course recommendation using Gemini AI
-      const course = await getCourseRecommendation(user);
+      // Get course recommendation from Class Central
+      const { searchClassCentralCourses } = await import('./lib/classcentral');
+      const course = await searchClassCentralCourses(user.subjects[0]);
       
       // Save the recommendation
       await storage.createRecommendation({
