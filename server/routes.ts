@@ -11,29 +11,29 @@ import { User } from '@shared/schema';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
-  
+
   // Authentication
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
-      
+
       if (!email || !password) {
         return res.status(400).json({
           success: false,
           message: "Email and password are required"
         });
       }
-      
+
       // Find user by email (used as username)
       const user = await storage.getUserByUsername(email);
-      
+
       if (!user) {
         return res.status(401).json({
           success: false,
           message: "Invalid email or password"
         });
       }
-      
+
       // In a real app, use bcrypt to compare passwords
       if (user.password !== password) {
         return res.status(401).json({
@@ -41,10 +41,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid email or password"
         });
       }
-      
+
       // Check if user has completed profile setup
       const hasProfile = Boolean(user.subjects && user.interests);
-      
+
       return res.json({
         success: true,
         message: "Login successful",
@@ -59,18 +59,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
-      
+
       if (!email || !password) {
         return res.status(400).json({
           success: false,
           message: "Email and password are required"
         });
       }
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByUsername(email);
       if (existingUser) {
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Email already registered"
         });
       }
-      
+
       // Create new user
       try {
         const user = await storage.createUser({
@@ -92,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           goal: "",
           thinking_style: "Plan"
         });
-        
+
         return res.json({
           success: true,
           message: "Registration successful",
@@ -113,13 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
-  
+
+
   // Survey submission
   app.post("/api/survey", async (req: Request, res: Response) => {
     try {
       console.log("Survey submission received:", JSON.stringify(req.body, null, 2));
-      
+
       // Validate the request body but be more flexible with subjects
       const surveySchema = insertUserSchema.extend({
         subjects: z.array(z.string()).optional().default([]),
@@ -127,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: z.string().optional().default("password123"),
         user_id: z.number().optional(), // Allow user_id for existing users
       });
-      
+
       let data;
       try {
         data = surveySchema.parse(req.body);
@@ -138,14 +138,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid survey data: " + (parseError instanceof Error ? parseError.message : String(parseError))
         });
       }
-      
+
       // Ensure we have an array for subjects even if it's empty
       const subjects = Array.isArray(data.subjects) ? data.subjects : [];
-      
+
       // Check if this is for an existing user (update) or a new user (create)
       const userId = data.user_id;
       let user;
-      
+
       try {
         if (userId) {
           // This is an existing user - update profile
@@ -161,13 +161,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             thinking_style: data.thinking_style || 'Plan',
             extra_info: data.extra_info || ''
           });
-          
+
           if (!user) {
             throw new Error(`User with ID ${userId} not found`);
           }
-          
+
           console.log("User profile updated successfully:", user.id);
-          
+
           // Create profile update activity
           try {
             await storage.createActivity({
@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: "Updated Career Profile",
               is_recent: true
             });
-            
+
             console.log(`Created profile update activity for user ${user.id}`);
           } catch (activityError) {
             console.error("Error creating profile update activity:", activityError);
@@ -191,7 +191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Add random numbers to ensure uniqueness
             data.username = `${baseUsername}${Math.floor(Math.random() * 10000)}`;
           }
-          
+
           // Create the user with proper handling of arrays
           user = await storage.createUser({
             username: data.username,
@@ -206,13 +206,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             thinking_style: data.thinking_style || 'Plan',
             extra_info: data.extra_info || ''
           });
-          
+
           console.log("New user created successfully:", user.id);
-          
+
           try {
             // Generate initial goals
             const initialGoals = await suggestGoals(subjects, data.skills || '', data.interests || '');
-            
+
             if (initialGoals && initialGoals.length > 0) {
               for (const goalText of initialGoals) {
                 await storage.createGoal({
@@ -222,14 +222,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   progress: 0
                 });
               }
-              
+
               console.log(`Created ${initialGoals.length} initial goals for user ${user.id}`);
             }
           } catch (goalError) {
             console.error("Error generating initial goals:", goalError);
             // Continue even if goal creation fails
           }
-          
+
           try {
             // Create initial activity
             await storage.createActivity({
@@ -238,23 +238,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: "Joined Emerge Career Platform",
               is_recent: true
             });
-            
+
             console.log(`Created initial activity for user ${user.id}`);
           } catch (activityError) {
             console.error("Error creating initial activity:", activityError);
             // Continue even if activity creation fails
           }
         }
-        
+
         // For both new and existing users, check if we need to generate goals
         if (userId) {
           const existingGoals = await storage.getGoalsByUserId(user.id);
-          
+
           if (!existingGoals || existingGoals.length === 0) {
             try {
               // Generate goals for existing user with no goals
               const goals = await suggestGoals(user.subjects, user.skills || '', user.interests || '');
-              
+
               if (goals && goals.length > 0) {
                 for (const goalText of goals) {
                   await storage.createGoal({
@@ -264,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     progress: 0
                   });
                 }
-                
+
                 console.log(`Created ${goals.length} goals for existing user ${user.id}`);
               }
             } catch (goalError) {
@@ -273,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-        
+
         return res.json({ 
           success: true, 
           message: userId ? "Profile updated successfully" : "Survey submitted successfully", 
@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Dashboard data
   app.get("/api/dashboard/:userId", async (req: Request, res: Response) => {
     try {
@@ -305,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid user ID" 
         });
       }
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ 
@@ -313,13 +313,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User not found" 
         });
       }
-      
+
       const [goals, activities, recommendations] = await Promise.all([
         storage.getGoalsByUserId(userId),
         storage.getActivitiesByUserId(userId),
         storage.getRecommendationsByUserId(userId)
       ]);
-      
+
       // Format the return data
       const formattedGoals = goals.map(g => ({
         id: g.id.toString(),
@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         completed: g.completed,
         progress: g.progress
       }));
-      
+
       const formattedActivities = activities.slice(0, 5).map(a => ({
         id: a.id.toString(),
         type: a.type,
@@ -335,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         time: a.time.toISOString(),
         isRecent: a.is_recent
       }));
-      
+
       const formattedRecommendations = recommendations.map(r => ({
         id: r.id.toString(),
         type: r.type,
@@ -344,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         url: r.url,
         metadata: r.metadata
       }));
-      
+
       // Create dummy trends if none exist
       const trends = [
         {
@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "article"
         }
       ];
-      
+
       return res.json({
         success: true,
         user: {
@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // User data
   app.get("/api/user/:userId", async (req: Request, res: Response) => {
     try {
@@ -410,7 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid user ID" 
         });
       }
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ 
@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User not found" 
         });
       }
-      
+
       return res.json({
         success: true,
         user: {
@@ -446,14 +446,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Goals management
   app.post("/api/goals", async (req: Request, res: Response) => {
     try {
       const goalData = insertGoalSchema.parse(req.body);
-      
+
       const goal = await storage.createGoal(goalData);
-      
+
       return res.json({ 
         success: true, 
         message: "Goal created successfully", 
@@ -467,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   app.put("/api/goals/:goalId", async (req: Request, res: Response) => {
     try {
       const goalId = parseInt(req.params.goalId);
@@ -477,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid goal ID" 
         });
       }
-      
+
       const goal = await storage.updateGoal(goalId, req.body);
       if (!goal) {
         return res.status(404).json({ 
@@ -485,13 +485,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Goal not found" 
         });
       }
-      
+
       // If goal is completed, update user progress
       if (req.body.completed === true) {
         const user = await storage.getUser(goal.user_id);
         if (user) {
           await storage.updateUserProgress(user.id, 10); // Increment progress by 10%
-          
+
           // Add activity for goal completion
           await storage.createActivity({
             user_id: user.id,
@@ -501,7 +501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       return res.json({ 
         success: true, 
         message: "Goal updated successfully", 
@@ -515,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   app.delete("/api/goals/:goalId", async (req: Request, res: Response) => {
     try {
       const goalId = parseInt(req.params.goalId);
@@ -525,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid goal ID" 
         });
       }
-      
+
       const success = await storage.deleteGoal(goalId);
       if (!success) {
         return res.status(404).json({ 
@@ -533,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Goal not found" 
         });
       }
-      
+
       return res.json({ 
         success: true, 
         message: "Goal deleted successfully" 
@@ -546,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Generate goal suggestions
   app.get("/api/goals/suggest/:userId", async (req: Request, res: Response) => {
     try {
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid user ID" 
         });
       }
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ 
@@ -565,20 +565,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User not found" 
         });
       }
-      
+
       if (!user.subjects?.length) {
         return res.status(400).json({
           success: false,
           message: "User profile incomplete. Please add subjects of interest."
         });
       }
-      
+
       // Get existing goals before generating new ones
       const existingGoals = await storage.getGoalsByUserId(userId);
-      
+
       try {
         const newGoal = await suggestGoals(user.subjects, user.skills || '', user.interests || '', 1);
-        
+
         // Add the new goal without removing existing ones
         if (newGoal.length > 0) {
           await storage.createGoal({
@@ -588,9 +588,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             progress: 0
           });
         }
-        
+
         const updatedGoals = await storage.getGoalsByUserId(userId);
-        
+
         return res.json({ 
           success: true, 
           message: "New goal added successfully", 
@@ -612,14 +612,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Activities
   app.post("/api/activities", async (req: Request, res: Response) => {
     try {
       const activityData = insertActivitySchema.parse(req.body);
-      
+
       const activity = await storage.createActivity(activityData);
-      
+
       return res.json({ 
         success: true, 
         message: "Activity created successfully", 
@@ -633,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Chat messages
   app.get("/api/chat/:userId", async (req: Request, res: Response) => {
     try {
@@ -644,9 +644,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid user ID" 
         });
       }
-      
+
       const messages = await storage.getChatHistoryByUserId(userId);
-      
+
       return res.json({ 
         success: true, 
         messages: messages.map(m => ({
@@ -664,13 +664,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   app.post("/api/chat", async (req: Request, res: Response) => {
     try {
       const messageData = insertChatSchema.parse(req.body);
-      
+
       const message = await storage.createChatMessage(messageData);
-      
+
       return res.json({ 
         success: true, 
         message: {
@@ -688,43 +688,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Career coach
   app.post("/api/career-coach", async (req: Request, res: Response) => {
     try {
       const { message, userData } = req.body;
-      
+
       if (!message || typeof message !== 'string') {
         return res.status(400).json({
           success: false,
           message: "Invalid message"
         });
       }
-      
+
       if (!userData || !userData.id) {
         return res.status(400).json({
           success: false,
           message: "User data is required"
         });
       }
-      
+
       // Save user message to chat history
       await storage.createChatMessage({
         user_id: userData.id,
         message: message,
         sender: 'user'
       });
-      
+
       // Generate a response using Gemini AI
       const botResponse = await getChatResponse(message, userData);
-      
+
       // Save bot response to chat history
       await storage.createChatMessage({
         user_id: userData.id,
         message: botResponse,
         sender: 'bot'
       });
-      
+
       return res.json({ 
         success: true, 
         response: botResponse
@@ -737,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Personalized video recommendations
   app.get("/api/personalized-recommendations/:userId", async (req: Request, res: Response) => {
     try {
@@ -748,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid user ID" 
         });
       }
-      
+
       const user = await storage.getUser(userId);
       if (!user || !user.subjects || user.subjects.length === 0) {
         return res.status(404).json({
@@ -756,11 +756,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User or subjects not found"
         });
       }
-      
+
       // Get fresh recommendation based on user's first subject
       const subject = user.subjects[0] || 'Career Development';
       const videoRecommendation = await fetchYoutubeRecommendations(subject);
-      
+
       // Save the recommendation
       await storage.createRecommendation({
         user_id: user.id,
@@ -773,7 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           channelTitle: videoRecommendation.channelTitle
         }
       });
-      
+
       return res.json({
         success: true,
         data: {
@@ -788,7 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Course recommendations
   app.get("/api/course-recommendation/:userId", async (req: Request, res: Response) => {
     try {
@@ -799,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Invalid user ID" 
         });
       }
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ 
@@ -807,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User not found" 
         });
       }
-      
+
       // Get existing course recommendations
       const existingRecommendations = await storage.getRecommendationsByUserId(userId, 'course');
       if (existingRecommendations.length > 0) {
@@ -824,11 +824,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       }
-      
+
       // Get course recommendation from Class Central
       const { searchClassCentralCourses } = await import('./lib/classcentral');
       const course = await searchClassCentralCourses(user.subjects[0]);
-      
+
       // Save the recommendation
       await storage.createRecommendation({
         user_id: user.id,
@@ -841,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           level: course.level
         }
       });
-      
+
       return res.json({
         success: true,
         course: {
@@ -860,12 +860,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Career trends
   app.get("/api/career-trends/:subject", async (req: Request, res: Response) => {
     try {
       const subject = req.params.subject;
-      
+
       // In a real app, fetch actual trends
       // For now, return static data
       const trends = [
@@ -889,7 +889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "article"
         }
       ];
-      
+
       return res.json({
         success: true,
         data: trends
