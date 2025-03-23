@@ -122,6 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subjects: z.array(z.string()).optional().default([]),
         username: z.string().optional(),
         password: z.string().optional().default("password123"),
+        user_id: z.number().optional(), // Allow user_id for existing users
       });
       
       let data;
@@ -135,84 +136,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Generate a username if not provided
-      if (!data.username) {
-        // Extract part before @ from email or use 'user' as fallback
-        const baseUsername = data.email ? data.email.split('@')[0] : 'user';
-        // Add random numbers to ensure uniqueness
-        data.username = `${baseUsername}${Math.floor(Math.random() * 10000)}`;
-      }
-      
       // Ensure we have an array for subjects even if it's empty
       const subjects = Array.isArray(data.subjects) ? data.subjects : [];
       
+      // Check if this is for an existing user (update) or a new user (create)
+      const userId = data.user_id;
+      let user;
+      
       try {
-        // Create the user with proper handling of arrays
-        const user = await storage.createUser({
-          username: data.username,
-          password: data.password,
-          name: data.name,
-          email: data.email,
-          avatar: data.avatar,
-          subjects: subjects,
-          interests: data.interests || '',
-          skills: data.skills || '',
-          goal: data.goal || '',
-          thinking_style: data.thinking_style || 'Plan',
-          extra_info: data.extra_info || ''
-        });
-        
-        console.log("User created successfully:", user.id);
-        
-        try {
-          // Import the goal suggestion generator from gemini.ts
-          const { generateGoalSuggestions } = await import("./lib/gemini");
-          
-          // Generate initial goals
-          const initialGoals = await generateGoalSuggestions(user);
-          
-          if (initialGoals && initialGoals.length > 0) {
-            for (const goalText of initialGoals) {
-              await storage.createGoal({
-                user_id: user.id,
-                title: goalText,
-                completed: false,
-                progress: 0
-              });
-            }
-            
-            console.log(`Created ${initialGoals.length} initial goals for user ${user.id}`);
-          }
-        } catch (goalError) {
-          console.error("Error generating initial goals:", goalError);
-          // Continue even if goal creation fails
-        }
-        
-        try {
-          // Create initial activity
-          await storage.createActivity({
-            user_id: user.id,
-            type: "lesson",
-            title: "Joined Emerge Career Platform",
-            is_recent: true
+        if (userId) {
+          // This is an existing user - update profile
+          console.log(`Updating existing user with ID: ${userId}`);
+          user = await storage.updateUser(userId, {
+            name: data.name,
+            email: data.email,
+            avatar: data.avatar,
+            subjects: subjects,
+            interests: data.interests || '',
+            skills: data.skills || '',
+            goal: data.goal || '',
+            thinking_style: data.thinking_style || 'Plan',
+            extra_info: data.extra_info || ''
           });
           
-          console.log(`Created initial activity for user ${user.id}`);
-        } catch (activityError) {
-          console.error("Error creating initial activity:", activityError);
-          // Continue even if activity creation fails
+          if (!user) {
+            throw new Error(`User with ID ${userId} not found`);
+          }
+          
+          console.log("User profile updated successfully:", user.id);
+          
+          // Create profile update activity
+          try {
+            await storage.createActivity({
+              user_id: user.id,
+              type: "lesson",
+              title: "Updated Career Profile",
+              is_recent: true
+            });
+            
+            console.log(`Created profile update activity for user ${user.id}`);
+          } catch (activityError) {
+            console.error("Error creating profile update activity:", activityError);
+            // Continue even if activity creation fails
+          }
+        } else {
+          // This is a new user - create profile
+          // Generate a username if not provided
+          if (!data.username) {
+            // Extract part before @ from email or use 'user' as fallback
+            const baseUsername = data.email ? data.email.split('@')[0] : 'user';
+            // Add random numbers to ensure uniqueness
+            data.username = `${baseUsername}${Math.floor(Math.random() * 10000)}`;
+          }
+          
+          // Create the user with proper handling of arrays
+          user = await storage.createUser({
+            username: data.username,
+            password: data.password,
+            name: data.name,
+            email: data.email,
+            avatar: data.avatar,
+            subjects: subjects,
+            interests: data.interests || '',
+            skills: data.skills || '',
+            goal: data.goal || '',
+            thinking_style: data.thinking_style || 'Plan',
+            extra_info: data.extra_info || ''
+          });
+          
+          console.log("New user created successfully:", user.id);
+          
+          try {
+            // Import the goal suggestion generator from gemini.ts
+            const { generateGoalSuggestions } = await import("./lib/gemini");
+            
+            // Generate initial goals
+            const initialGoals = await generateGoalSuggestions(user);
+            
+            if (initialGoals && initialGoals.length > 0) {
+              for (const goalText of initialGoals) {
+                await storage.createGoal({
+                  user_id: user.id,
+                  title: goalText,
+                  completed: false,
+                  progress: 0
+                });
+              }
+              
+              console.log(`Created ${initialGoals.length} initial goals for user ${user.id}`);
+            }
+          } catch (goalError) {
+            console.error("Error generating initial goals:", goalError);
+            // Continue even if goal creation fails
+          }
+          
+          try {
+            // Create initial activity
+            await storage.createActivity({
+              user_id: user.id,
+              type: "lesson",
+              title: "Joined Emerge Career Platform",
+              is_recent: true
+            });
+            
+            console.log(`Created initial activity for user ${user.id}`);
+          } catch (activityError) {
+            console.error("Error creating initial activity:", activityError);
+            // Continue even if activity creation fails
+          }
+        }
+        
+        // For both new and existing users, check if we need to generate goals
+        if (userId) {
+          const existingGoals = await storage.getGoalsByUserId(user.id);
+          
+          if (!existingGoals || existingGoals.length === 0) {
+            try {
+              // Import the goal suggestion generator from gemini.ts
+              const { generateGoalSuggestions } = await import("./lib/gemini");
+              
+              // Generate goals for existing user with no goals
+              const goals = await generateGoalSuggestions(user);
+              
+              if (goals && goals.length > 0) {
+                for (const goalText of goals) {
+                  await storage.createGoal({
+                    user_id: user.id,
+                    title: goalText,
+                    completed: false,
+                    progress: 0
+                  });
+                }
+                
+                console.log(`Created ${goals.length} goals for existing user ${user.id}`);
+              }
+            } catch (goalError) {
+              console.error("Error generating goals for existing user:", goalError);
+              // Continue even if goal creation fails
+            }
+          }
         }
         
         return res.json({ 
           success: true, 
-          message: "Survey submitted successfully", 
+          message: userId ? "Profile updated successfully" : "Survey submitted successfully", 
           userId: user.id 
         });
       } catch (userError) {
-        console.error("Error creating user:", userError);
+        console.error("Error processing user data:", userError);
         return res.status(400).json({ 
           success: false, 
-          message: userError instanceof Error ? userError.message : "Failed to create user" 
+          message: userError instanceof Error ? userError.message : "Failed to process user data" 
         });
       }
     } catch (error) {

@@ -76,13 +76,18 @@ export default function Survey() {
     setIsSubmitting(true);
 
     try {
+      // Check if we have a user ID in localStorage (for existing users)
+      const existingUserId = localStorage.getItem('userId');
+      
       // Make sure subjects is an array
       const formattedValues = {
         ...values,
         username: values.email, // Use email as username for simplicity
         password: "password123", // Default password in a real app this would be set by user
         // Ensure subjects is an array even if it's empty
-        subjects: Array.isArray(values.subjects) ? values.subjects : []
+        subjects: Array.isArray(values.subjects) ? values.subjects : [],
+        // Include user_id if it exists (for profile updates)
+        user_id: existingUserId ? parseInt(existingUserId) : undefined
       };
       
       console.log('Submitting survey with data:', formattedValues);
