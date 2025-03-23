@@ -27,32 +27,32 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
       try {
         // Fetch user data to get subject
         const userResponse = await fetch(`/api/user/${userId}`);
-        
+
         if (!userResponse.ok) {
           throw new Error(`HTTP error! status: ${userResponse.status}`);
         }
-        
+
         const userData = await userResponse.json();
-        
+
         if (!userData.success) {
           throw new Error("Failed to fetch user data");
         }
-        
+
         const subject = userData.user?.subjects?.[0] || 'Career Development';
-        
+
         // Fetch trends based on subject
         const trendsResponse = await fetch(`/api/career-trends/${encodeURIComponent(subject)}`);
-        
+
         if (!trendsResponse.ok) {
           throw new Error(`HTTP error! status: ${trendsResponse.status}`);
         }
-        
+
         const trendsData = await trendsResponse.json();
-        
+
         if (!trendsData.success) {
           throw new Error(trendsData.message || "Failed to fetch trends data");
         }
-        
+
         return Array.isArray(trendsData.data) ? trendsData.data : [];
       } catch (error) {
         console.error('Error fetching trends:', error);
@@ -67,7 +67,7 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
-          What's Hot
+          Career Trend Insights
         </CardTitle>
         <Button 
           variant="ghost" 
@@ -80,6 +80,9 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
         </Button>
       </CardHeader>
       <CardContent>
+        <p className="text-sm text-muted-foreground mb-4">
+          Discover the latest trends and opportunities in your field, updated regularly with industry insights.  Links open in a new tab.
+        </p>
         <div className="space-y-4">
           {isError ? (
             <p className="text-sm text-red-500 text-center py-4">
