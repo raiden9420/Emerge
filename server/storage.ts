@@ -53,7 +53,17 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     if (!db) throw new Error("Database not initialized");
-    const result = await db.insert(users).values(insertUser).returning();
+    // Check existing users with the same username to avoid duplicates
+    const existingUser = await this.getUserByUsername(insertUser.username);
+    if (existingUser) {
+      throw new Error(`Username '${insertUser.username}' is already taken`);
+    }
+    // Convert array to JSON string for database storage
+    const userToInsert = {
+      ...insertUser,
+      subjects: insertUser.subjects ? JSON.stringify(insertUser.subjects) : null
+    };
+    const result = await db.insert(users).values(userToInsert).returning();
     return result[0];
   }
   
