@@ -25,11 +25,11 @@ type UserData = {
 };
 
 interface CareerCoachProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function CareerCoach({ isOpen, onClose }: CareerCoachProps) {
+export default function CareerCoach({ isOpen = true, onClose }: CareerCoachProps) {
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -48,14 +48,16 @@ export default function CareerCoach({ isOpen, onClose }: CareerCoachProps) {
   // Fetch chat history
   const { data: chatHistory } = useQuery<{success: boolean, messages: Message[]}>({
     queryKey: [`/api/chat/${userId}`],
-    enabled: !!userId,
-    onSuccess: (data) => {
-      if (data?.success && data.messages) {
-        setMessages(data.messages);
-        scrollToBottom();
-      }
-    }
+    enabled: !!userId
   });
+  
+  // Update messages when chat history is loaded
+  useEffect(() => {
+    if (chatHistory?.success && chatHistory.messages) {
+      setMessages(chatHistory.messages);
+      scrollToBottom();
+    }
+  }, [chatHistory]);
 
   // Send message mutation
   const { mutate: sendMessage, isPending: isSending } = useMutation({
@@ -159,31 +161,13 @@ export default function CareerCoach({ isOpen, onClose }: CareerCoachProps) {
     sendMessage(userInput);
   };
 
-  // If component is not open, handle accordingly
-  if (!isOpen) {
-    if (onClose) {
-      // When used as a modal
-      return null;
-    } else {
-      // When accessed directly via route
-      useEffect(() => {
-        // If not open and accessed directly, go to dashboard
-        if (!userId) {
-          navigate('/survey');
-          return;
-        }
-      }, [userId, navigate]);
-      
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="mt-4 text-muted-foreground">Loading your coach...</p>
-          </div>
-        </div>
-      );
+  // Check if user is logged in when component is accessed directly as a route
+  useEffect(() => {
+    // If accessed without a userId, redirect to auth
+    if (!userId) {
+      navigate('/auth');
     }
-  }
+  }, [userId, navigate]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
