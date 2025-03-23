@@ -471,16 +471,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // In a real app, we would use the Gemini API here
-      // For now, generate a static response based on user data
-      const botResponse = `I'm your Emerge career coach. I can see you're interested in ${userData.subjects?.[0] || 'various subjects'} and your goal is ${userData.goal || 'career development'}. Let me help you achieve your career goals!`;
-      
       // Save user message to chat history
       await storage.createChatMessage({
         user_id: userData.id,
         message: message,
         sender: 'user'
       });
+      
+      // Import the chat response generator from gemini.ts
+      const { getChatResponse } = await import("./lib/gemini");
+      
+      // Generate a response using Gemini AI
+      const botResponse = await getChatResponse(message, userData);
       
       // Save bot response to chat history
       await storage.createChatMessage({
@@ -609,46 +611,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Create a course recommendation based on user's subjects
-      const subject = user.subjects?.[0] || 'Computer Science';
-      let courseTitle = "Intro to Career Development";
-      let courseDescription = "Learn essential skills for career success";
-      let courseLevel = "Beginner";
+      // Import the course recommendation generator from gemini.ts
+      const { generateCourseRecommendation } = await import("./lib/gemini");
       
-      // Customize based on subject
-      if (subject === 'Computer Science') {
-        courseTitle = "Data Structures and Algorithms";
-        courseDescription = "Master the core concepts needed for technical interviews";
-        courseLevel = "Intermediate";
-      } else if (subject === 'Biology') {
-        courseTitle = "Introduction to Biotechnology";
-        courseDescription = "Learn the foundations of modern biotechnology applications";
-      } else if (subject === 'Literature') {
-        courseTitle = "Contemporary Literary Analysis";
-        courseDescription = "Develop critical analysis skills for modern literature";
-      }
+      // Generate a course recommendation using Gemini AI
+      const course = await generateCourseRecommendation(user);
       
       // Save the recommendation
       await storage.createRecommendation({
         user_id: user.id,
         type: 'course',
-        title: courseTitle,
-        description: courseDescription,
-        url: "https://www.coursera.org/learn/data-structures",
+        title: course.title,
+        description: course.description,
+        url: course.url,
         metadata: {
-          duration: "8 weeks",
-          level: courseLevel
+          duration: course.duration,
+          level: course.level
         }
       });
       
       return res.json({
         success: true,
         course: {
-          title: courseTitle,
-          description: courseDescription,
-          url: "https://www.coursera.org/learn/data-structures",
-          duration: "8 weeks",
-          level: courseLevel
+          title: course.title,
+          description: course.description,
+          url: course.url,
+          duration: course.duration,
+          level: course.level
         }
       });
     } catch (error) {
