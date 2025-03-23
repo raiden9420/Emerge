@@ -140,13 +140,25 @@ export function Sidebar({ user }: SidebarProps) {
           
           {/* Bottom Section */}
           <div className="p-4 border-t border-sidebar-border">
-            <button className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
-              <Settings className="h-5 w-5 mr-2" />
-              Settings
-            </button>
-            <button className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors mt-2">
-              <HelpCircle className="h-5 w-5 mr-2" />
-              Help & Support
+            <Link href="/settings">
+              <a className={`flex items-center px-3 py-2 w-full text-sm font-medium rounded-md ${
+                location === '/settings' 
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              } transition-colors`}>
+                <Settings className="h-5 w-5 mr-2" />
+                Settings
+              </a>
+            </Link>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('userId');
+                window.location.href = '/';
+              }}
+              className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors mt-2"
+            >
+              <LogOut className="h-5 w-5 mr-2" />
+              Log Out
             </button>
           </div>
         </div>
