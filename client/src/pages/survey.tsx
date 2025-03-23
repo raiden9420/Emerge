@@ -76,24 +76,42 @@ export default function Survey() {
     setIsSubmitting(true);
 
     try {
+      // Make sure subjects is an array
+      const formattedValues = {
+        ...values,
+        username: values.email, // Use email as username for simplicity
+        password: "password123", // Default password in a real app this would be set by user
+        // Ensure subjects is an array even if it's empty
+        subjects: Array.isArray(values.subjects) ? values.subjects : []
+      };
+      
+      console.log('Submitting survey with data:', formattedValues);
+      
       // Call our Express API
       const response = await fetch('/api/survey', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...values,
-          username: values.email, // Use email as username for simplicity
-          password: "password123", // Default password in a real app this would be set by user
-        }),
+        body: JSON.stringify(formattedValues),
       });
 
+      console.log('Survey submission response status:', response.status);
+      
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${responseText}`);
       }
       
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch(e) {
+        console.error('Failed to parse response JSON:', e);
+        throw new Error(`Invalid response format: ${responseText}`);
+      }
 
       if (data && data.success) {
         toast({

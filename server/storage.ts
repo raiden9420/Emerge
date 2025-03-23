@@ -58,13 +58,31 @@ export class DatabaseStorage implements IStorage {
     if (existingUser) {
       throw new Error(`Username '${insertUser.username}' is already taken`);
     }
-    // Convert array to JSON string for database storage
-    const userToInsert = {
-      ...insertUser,
-      subjects: insertUser.subjects ? JSON.stringify(insertUser.subjects) : null
-    };
-    const result = await db.insert(users).values(userToInsert).returning();
-    return result[0];
+    
+    try {
+      console.log('Creating user with data:', JSON.stringify(insertUser));
+      
+      // For PostgreSQL, we need to handle arrays correctly
+      // The JSON field will be handled automatically by Drizzle ORM
+      const result = await db.insert(users).values({
+        username: insertUser.username,
+        password: insertUser.password,
+        name: insertUser.name || null,
+        email: insertUser.email || null,
+        avatar: insertUser.avatar || null,
+        subjects: insertUser.subjects || [],
+        interests: insertUser.interests || null,
+        skills: insertUser.skills || null,
+        goal: insertUser.goal || null,
+        thinking_style: insertUser.thinking_style || null,
+        extra_info: insertUser.extra_info || null
+      }).returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error('Error in createUser:', error);
+      throw error;
+    }
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
