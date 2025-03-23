@@ -1,10 +1,13 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { db } from './db';
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertUserSchema, insertGoalSchema, insertActivitySchema, insertChatSchema, insertRecommendationSchema } from "@shared/schema";
-import { generateGoalSuggestions } from "./lib/gemini";
+import { suggestGoals, getCourseRecommendation, getChatResponse } from "./lib/gemini";
 import { fetchYoutubeRecommendations } from "./lib/youtube";
+import { User } from '@shared/schema';
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -207,11 +210,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("New user created successfully:", user.id);
           
           try {
-            // Import the goal suggestion generator from gemini.ts
-            const { generateGoalSuggestions } = await import("./lib/gemini");
-            
             // Generate initial goals
-            const initialGoals = await generateGoalSuggestions(user);
+            const initialGoals = await suggestGoals(subjects, data.skills || '', data.interests || '');
             
             if (initialGoals && initialGoals.length > 0) {
               for (const goalText of initialGoals) {
@@ -252,11 +252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (!existingGoals || existingGoals.length === 0) {
             try {
-              // Import the goal suggestion generator from gemini.ts
-              const { generateGoalSuggestions } = await import("./lib/gemini");
-              
               // Generate goals for existing user with no goals
-              const goals = await generateGoalSuggestions(user);
+              const goals = await suggestGoals(user.subjects, user.skills || '', user.interests || '');
               
               if (goals && goals.length > 0) {
                 for (const goalText of goals) {
@@ -568,14 +565,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User not found" 
         });
       }
-
+      
       if (!user.subjects?.length) {
         return res.status(400).json({
           success: false,
           message: "User profile incomplete. Please add subjects of interest."
         });
       }
-
+      
       // Get existing goals before generating new ones
       const existingGoals = await storage.getGoalsByUserId(userId);
       
@@ -591,7 +588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             progress: 0
           });
         }
-
+        
         const updatedGoals = await storage.getGoalsByUserId(userId);
         
         return res.json({ 
@@ -717,9 +714,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: message,
         sender: 'user'
       });
-      
-      // Import the chat response generator from gemini.ts
-      const { getChatResponse } = await import("./lib/gemini");
       
       // Generate a response using Gemini AI
       const botResponse = await getChatResponse(message, userData);
@@ -851,11 +845,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Import the course recommendation generator from gemini.ts
-      const { generateCourseRecommendation } = await import("./lib/gemini");
-      
       // Generate a course recommendation using Gemini AI
-      const course = await generateCourseRecommendation(user);
+      const course = await getCourseRecommendation(user);
       
       // Save the recommendation
       await storage.createRecommendation({
