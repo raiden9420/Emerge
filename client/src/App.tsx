@@ -1,44 +1,55 @@
-import { Switch, Route, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { useEffect } from "react";
-import NotFound from "@/pages/not-found";
-import Survey from "@/pages/survey";
-import Dashboard from "@/pages/dashboard";
-import CareerCoach from "@/pages/career-coach";
-import Index from "./pages/index";
-import AuthPage from "@/pages/auth";
 
-function Router() {
-  const [location, setLocation] = useLocation();
-  
-  // Check if user should be redirected based on authentication status
+import { Route, Switch, useLocation, Redirect } from "wouter";
+import { queryClient, apiRequest } from "./lib/queryClient";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "./providers/theme-provider";
+import { useEffect, useState } from "react";
+
+import Dashboard from "@/pages/dashboard";
+import Survey from "@/pages/survey";
+import NotFound from "@/pages/not-found";
+
+function AppRouter() {
+  const [location] = useLocation();
+  const [checkingUser, setCheckingUser] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(true);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['/api/user/1'],
+    queryFn: async () => {
+      const response = await fetch('/api/user/1');
+      const data = await response.json();
+      return data;
+    },
+    retry: 0,
+    onError: () => {
+      return { success: false };
+    }
+  });
+
   useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    
-    // If we're not on the auth page and there's no userId, redirect to auth
-    if (location !== "/auth" && !userId && (location !== "/")) {
-      setLocation("/auth");
+    if (!isLoading) {
+      setIsNewUser(!data?.success || !data?.user?.hasProfile);
+      setCheckingUser(false);
     }
-    
-    // If user is on the root path, redirect to dashboard if logged in, auth if not
-    if (location === "/") {
-      if (userId) {
-        setLocation("/dashboard");
-      } else {
-        setLocation("/auth");
-      }
+  }, [data, isLoading]);
+
+  if (location === "/" && !checkingUser) {
+    if (isNewUser) {
+      return <Redirect to="/survey" />;
+    } else {
+      return <Redirect to="/dashboard" />;
     }
-  }, [location, setLocation]);
-  
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Index} />
-      <Route path="/auth" component={AuthPage} />
       <Route path="/survey" component={Survey} />
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/career-coach" component={CareerCoach} />
+      <Route path="/" component={Dashboard} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -47,8 +58,13 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <ThemeProvider>
+        <TooltipProvider>
+          <AppRouter />
+          <Toaster />
+          <Sonner />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
