@@ -1,63 +1,60 @@
 import { User } from "@shared/schema";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the Google Generative AI client with the Gemini API key
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.warn("Warning: GEMINI_API_KEY is not defined. AI features will use fallback responses.");
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY environment variable is required");
 }
-const genAI = new GoogleGenerativeAI(apiKey || "dummy-key");
 
-/**
- * Generates goal suggestions using Gemini AI based on user profile
- */
-export async function generateGoalSuggestions(user: User): Promise<string[]> {
+export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+export async function suggestGoals(subjects: string[], skills: string, interests: string, count: number = 1): Promise<string[]> {
   try {
-    console.log("Generating goal suggestions for user:", user.username);
-    
-    // Extract user information
-    const subject = user.subjects?.[0] || '';
-    const interests = user.interests || '';
-    const skills = user.skills || '';
-    const goal = user.goal || '';
-    
-    // Create a prompt for the Gemini model
-    const prompt = `Generate 5 specific, actionable career development goals for a student with the following profile:
-    - Subject: ${subject}
-    - Interests: ${interests}
-    - Skills: ${skills}
-    - Career Goal: ${goal}
-    
-    Each goal should:
-    1. Be specific and actionable
-    2. Be achievable in 1-2 hours
-    3. Help advance their career prospects
-    4. Be related to their subjects, interests, or skills
-    5. Format as a list of 5 items, with each item being just the goal text
-    
-    Return only the 5 goals as a numbered list without any explanations or preamble.`;
-    
-    // Generate a response using the Gemini model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" }); // Updated model name
+    const subjectsString = subjects.join(", ");
+    const prompt = `Suggest ${count} specific and actionable career development goal focused on the subjects: ${subjectsString}
+Consider these aspects - Current Skills: ${skills}, Interests: ${interests}
+
+Based on these, suggest career development activities like:
+- Industry research and analysis
+- Skill-building exercises
+- Portfolio development
+- Professional networking
+- Personal branding
+- Technical learning
+- Career exploration
+
+Requirements for goals:
+- Must be achievable in 1-2 hours
+- Should be specific and actionable
+- Vary between different types of activities
+- Focus on career exploration and professional development
+- Should help understand career paths and opportunities
+- Include industry-relevant skills or knowledge
+- Be specific and measurable
+
+Format as JSON array of strings. Example:
+["Research and analyze 2 leading companies in ${subjectsString} sector", "Create a portfolio entry demonstrating ${skills}"]
+
+Response must be only the JSON array, no other text.`;
+
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
-    
-    // Parse the response into an array of goals
-    const goals = text
-      .split(/\d\./)
-      .map(goal => goal.trim())
-      .filter(goal => goal.length > 0);
-    
-    if (goals.length >= 5) {
-      return goals.slice(0, 5);
+    console.log("Raw Gemini response for goals:", text);
+
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.slice(0, count);
+      }
+      throw new Error("Invalid response format from AI");
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", parseError);
+      throw new Error("Failed to generate valid goals");
     }
-    
-    // Fallback in case parsing fails
-    return getFallbackGoals(subject);
   } catch (error) {
-    console.error("Error generating goals with Gemini:", error);
-    return getFallbackGoals(user.subjects?.[0] || '');
+    console.error("Gemini API error:", error);
+    throw error; // Propagate error to show in UI
   }
 }
 
@@ -160,60 +157,6 @@ export async function getChatResponse(message: string, userData: Partial<User>):
     console.error("Error generating chat response with Gemini:", error);
     return "I'm sorry, I'm having trouble connecting to my knowledge base right now. What specific career advice can I help you with regarding your studies or job preparation?";
   }
-}
-
-/**
- * Fallback goals if API call fails
- */
-function getFallbackGoals(subject: string): string[] {
-  const commonGoals = [
-    "Update your LinkedIn profile with your current skills and experience",
-    "Create a portfolio website showcasing your projects and skills",
-    "Read an industry-relevant book or research paper",
-    "Attend a networking event in your field",
-    "Practice answering common interview questions in your field"
-  ];
-  
-  let subjectSpecificGoals: string[] = [];
-  
-  // Add subject-specific goals
-  if (subject === 'Computer Science') {
-    subjectSpecificGoals = [
-      "Complete a basic Python programming course",
-      "Build a portfolio project showcasing database skills",
-      "Research and apply to 3 summer internships in tech",
-      "Contribute to an open-source project on GitHub",
-      "Learn the fundamentals of cloud computing"
-    ];
-  } else if (subject === 'Biology') {
-    subjectSpecificGoals = [
-      "Master PCR techniques through an online course",
-      "Practice writing a lab report in scientific format",
-      "Research current trends in biotechnology",
-      "Learn about ethical considerations in biological research",
-      "Participate in a citizen science project"
-    ];
-  } else if (subject === 'Literature') {
-    subjectSpecificGoals = [
-      "Analyze a contemporary novel using literary theory",
-      "Create a writing portfolio with different styles",
-      "Learn about the publishing industry",
-      "Practice critical reading and annotation skills",
-      "Join a book club or literary discussion group"
-    ];
-  } else {
-    // Generic goals for other subjects
-    subjectSpecificGoals = [
-      `Take an online course in ${subject}`,
-      `Research current trends in ${subject}`,
-      `Find and follow 5 thought leaders in ${subject} on social media`,
-      `Create a study group for ${subject} topics`,
-      `Read the latest research papers in ${subject}`
-    ];
-  }
-  
-  // Combine and return 5 goals
-  return [...commonGoals, ...subjectSpecificGoals].slice(0, 5);
 }
 
 /**

@@ -575,29 +575,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User profile incomplete. Please add subjects of interest."
         });
       }
+
+      // Get existing goals before generating new ones
+      const existingGoals = await storage.getGoalsByUserId(userId);
       
-      const goalSuggestions = await generateGoalSuggestions(user, 3);
-      
-      // Clear existing goals
-      await storage.clearUserGoals(userId);
-      
-      // Create the goals
-      if (goalSuggestions && goalSuggestions.length > 0) {
-        for (const goalText of goalSuggestions) {
+      try {
+        const newGoal = await suggestGoals(user.subjects, user.skills || '', user.interests || '', 1);
+        
+        // Add the new goal without removing existing ones
+        if (newGoal.length > 0) {
           await storage.createGoal({
             user_id: user.id,
-            title: goalText,
+            title: newGoal[0],
             completed: false,
             progress: 0
           });
         }
+
+        const updatedGoals = await storage.getGoalsByUserId(userId);
+        
+        return res.json({ 
+          success: true, 
+          message: "New goal added successfully", 
+          goals: updatedGoals.map(g => g.title)
+        });
+      } catch (aiError) {
+        console.error("AI Service Error:", aiError);
+        return res.status(503).json({
+          success: false,
+          message: "Unable to generate new goal. AI service error: " + aiError.message,
+          goals: existingGoals.map(g => g.title)
+        });
       }
-      
-      return res.json({ 
-        success: true, 
-        message: "Goals generated successfully", 
-        goals: goalSuggestions
-      });
     } catch (error) {
       console.error("Error generating goal suggestions:", error);
       return res.status(500).json({ 
