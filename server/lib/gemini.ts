@@ -95,7 +95,7 @@ export async function generateCourseRecommendation(user: User): Promise<{
     - URL: [a realistic but fictional URL, for example: https://learning-platform.com/course-name]`;
     
     // Generate a response using the Gemini model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash"" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
