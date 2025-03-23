@@ -160,11 +160,14 @@ export function Sidebar({ user }: SidebarProps) {
                   });
                   
                   if (response.ok) {
-                    localStorage.removeItem('userId');
-                    window.location.href = '/auth';
+                    localStorage.clear(); // Clear all localStorage data
+                    window.location.href = '/auth'; // Redirect to auth page
+                  } else {
+                    throw new Error('Logout failed');
                   }
                 } catch (error) {
                   console.error('Logout failed:', error);
+                  // Could add toast notification here for error feedback
                 }
               }}
               className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
