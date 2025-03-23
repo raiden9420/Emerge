@@ -13,6 +13,22 @@ type Goal = {
   progress: number;
 };
 
+export function GoalsCard({ goals = [], userId }: { goals: Goal[], userId: number }) {
+  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [newGoalText, setNewGoalText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleRefreshGoals = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/goals/suggest/${userId}`);
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to refresh goals');
+      }
+      queryClient.invalidateQueries([`/api/dashboard/${userId}`]);
+
 type GoalsCardProps = {
   goals: Goal[];
   userId: number;
