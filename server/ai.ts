@@ -5,10 +5,10 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "";
 
 export async function generateGoalSuggestions(user: User, count = 1): Promise<string[]> {
   try {
-    // Skip in development if no API key is available
+    // Skip if no API key is available
     if (!GEMINI_API_KEY) {
-      console.log("No Gemini API key available. Using fallback goals.");
-      return getFallbackGoals(user.subjects?.[0] || "");
+      console.log("No Gemini API key available. Cannot generate goals.");
+      return [];
     }
 
     const subjectsString = user.subjects?.join(", ") || "";
@@ -57,10 +57,10 @@ export async function generateGoalSuggestions(user: User, count = 1): Promise<st
     });
 
     const data = await response.json();
-    
+
     // Parse the response to extract the goals
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
+
     // Try to extract JSON array from the response
     try {
       // Find anything that looks like a JSON array in the text
@@ -74,17 +74,17 @@ export async function generateGoalSuggestions(user: User, count = 1): Promise<st
     } catch (err) {
       console.error("Error parsing AI response:", err);
     }
-    
+
     // Fallback to simple text parsing if JSON extraction fails
     return content
       .split('\n')
       .filter(line => line.trim().length > 0)
       .map(line => line.replace(/^[0-9]+\.\s*/, '').replace(/"/g, ''))
       .slice(0, count);
-    
+
   } catch (error) {
     console.error("Error generating goal suggestions:", error);
-    return getFallbackGoals(user.subjects?.[0] || "");
+    return [];
   }
 }
 
@@ -124,7 +124,7 @@ export async function generateCourseRecommendation(user: User): Promise<{ title:
 
     const data = await response.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
+
     try {
       // Try to extract JSON from the response
       const jsonMatch = content.match(/{[\s\S]*}/);
@@ -143,7 +143,7 @@ export async function generateCourseRecommendation(user: User): Promise<{ title:
     } catch (err) {
       console.error("Error parsing course recommendation:", err);
     }
-    
+
     return getFallbackCourse(user.subjects?.[0] || "");
   } catch (error) {
     console.error("Error generating course recommendation:", error);
@@ -160,14 +160,14 @@ export async function getVideoRecommendation(subject: string): Promise<{ title: 
 
     const query = encodeURIComponent(`${subject} career development tutorial`);
     const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${query}&type=video&relevanceLanguage=en&key=${YOUTUBE_API_KEY}`);
-    
+
     if (!response.ok) {
       throw new Error(`YouTube API error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     const video = data.items?.[0];
-    
+
     if (video) {
       return {
         title: video.snippet.title,
@@ -177,7 +177,7 @@ export async function getVideoRecommendation(subject: string): Promise<{ title: 
         channelTitle: video.snippet.channelTitle
       };
     }
-    
+
     return getFallbackVideo(subject);
   } catch (error) {
     console.error("Error fetching video recommendation:", error);
@@ -209,7 +209,7 @@ export async function getCareeTrends(subject: string): Promise<any[]> {
                   "type": either "article" or "post",
                   "url": a real URL related to the topic (e.g., from Indeed, LinkedIn, or an educational site)
                 }
-                
+
                 For some entries, include a "metrics" object with:
                 { 
                   "like_count": a number between 100-2000,
@@ -230,7 +230,7 @@ export async function getCareeTrends(subject: string): Promise<any[]> {
 
     const data = await response.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
+
     try {
       // Extract JSON array from the response
       const jsonMatch = content.match(/\[\s*{[\s\S]*}\s*\]/);
@@ -243,7 +243,7 @@ export async function getCareeTrends(subject: string): Promise<any[]> {
     } catch (err) {
       console.error("Error parsing trends response:", err);
     }
-    
+
     return getFallbackTrends(subject);
   } catch (error) {
     console.error("Error generating trends:", error);
@@ -272,10 +272,10 @@ export async function getChatResponse(message: string, userData: Partial<User>):
               {
                 text: `You are Emerge, a career coach helping a student interested in ${subjects.join(", ")}.
                 Their interests include ${interests} and their career goal is ${goal}.
-                
+
                 Provide a helpful, supportive, and actionable response to their question:
                 "${message}"
-                
+
                 Give specific advice tailored to their academic interests and career goals.`
               }
             ]
@@ -290,7 +290,7 @@ export async function getChatResponse(message: string, userData: Partial<User>):
 
     const data = await response.json();
     const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
+
     return replyText || "I'm having trouble understanding. Can you rephrase your question?";
   } catch (error) {
     console.error("Error generating chat response:", error);
@@ -307,7 +307,7 @@ function getFallbackGoals(subject: string): string[] {
     "Attend a virtual career fair",
     "Build a portfolio of your work"
   ];
-  
+
   const subjectGoals: Record<string, string[]> = {
     "Computer Science": [
       "Build a personal coding project",
@@ -338,7 +338,7 @@ function getFallbackGoals(subject: string): string[] {
       "Practice problem-solving methodologies"
     ]
   };
-  
+
   return subjectGoals[subject] || generalGoals;
 }
 
@@ -350,7 +350,7 @@ function getFallbackCourse(subject: string): { title: string; description: strin
     level: "Beginner",
     url: "https://www.coursera.org/learn/career-development"
   };
-  
+
   const subjectCourses: Record<string, any> = {
     "Computer Science": {
       title: "Introduction to Computer Science",
@@ -381,7 +381,7 @@ function getFallbackCourse(subject: string): { title: string; description: strin
       url: "https://www.edx.org/learn/engineering/mit-a-hands-on-introduction-to-engineering-simulations"
     }
   };
-  
+
   return subjectCourses[subject] || generalCourse;
 }
 
@@ -392,7 +392,7 @@ function getFallbackVideo(subject: string): { title: string; description: string
     url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     channelTitle: "Career Insights"
   };
-  
+
   const subjectVideos: Record<string, any> = {
     "Computer Science": {
       title: "Map of Computer Science",
@@ -419,7 +419,7 @@ function getFallbackVideo(subject: string): { title: string; description: string
       channelTitle: "Engineering Academy"
     }
   };
-  
+
   return subjectVideos[subject] || generalVideo;
 }
 
@@ -445,7 +445,7 @@ function getFallbackTrends(subject: string): any[] {
       url: "https://www.indeed.com/career-advice/finding-a-job/skills-based-hiring"
     }
   ];
-  
+
   const subjectTrends: Record<string, any[]> = {
     "Computer Science": [
       {
@@ -490,6 +490,6 @@ function getFallbackTrends(subject: string): any[] {
       }
     ]
   };
-  
+
   return subjectTrends[subject] || generalTrends;
 }
