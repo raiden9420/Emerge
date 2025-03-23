@@ -9,7 +9,7 @@ export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function suggestGoals(subjects: string[], skills: string, interests: string, count: number = 1): Promise<string[]> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" }); // Updated model name
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Updated model name
     const subjectsString = subjects.join(", ");
     const prompt = `Suggest ${count} specific and actionable career development goal focused on the subjects: ${subjectsString}
 Consider these aspects - Current Skills: ${skills}, Interests: ${interests}
@@ -149,7 +149,7 @@ export async function getChatResponse(message: string, userData: Partial<User>):
     Your response should be in a conversational tone as if you're having a direct chat with the student.`;
     
     // Generate a response using the Gemini model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash"" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
