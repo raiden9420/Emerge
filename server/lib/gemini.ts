@@ -65,29 +65,6 @@ Response must be only the JSON array, no other text.`;
   }
 }
 
-export async function getCourseRecommendation(profile: any) {
-  try {
-    if (!profile.subjects?.[0]) {
-      throw new Error("No subjects found in profile");
-    }
-
-    const { searchClassCentralCourses } = await import('./classcentral');
-    const course = await searchClassCentralCourses(profile.subjects[0]);
-
-    if (!course) {
-      throw new Error("No courses found");
-    }
-
-    return {
-      success: true,
-      course
-    };
-  } catch (error) {
-    console.error('Course recommendation error:', error);
-    throw error;
-  }
-}
-
 export async function getChatResponse(message: string, userData: any): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
