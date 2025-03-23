@@ -42,14 +42,28 @@ export default function CareerCoach({ isOpen, onClose }: CareerCoachProps) {
   // Send message mutation
   const { mutate: sendMessage, isPending: isSending } = useMutation({
     mutationFn: async (message: string) => {
+      if (!userData) {
+        throw new Error("User data not available");
+      }
       const response = await fetch('/api/career-coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message,
-          userData
+          userData: {
+            id: userData.id,
+            subjects: userData.subjects || [],
+            interests: userData.interests || '',
+            skills: userData.skills || '',
+            goal: userData.goal || '',
+            thinking_style: userData.thinkingStyle || '',
+            extra_info: userData.extraInfo || ''
+          }
         })
       });
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
       return response.json();
     },
     onSuccess: (data) => {
