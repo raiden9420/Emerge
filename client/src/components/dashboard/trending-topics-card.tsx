@@ -12,7 +12,7 @@ type Trend = {
   title: string;
   description: string;
   url: string;
-  type: 'article' | 'post';
+  type: "article" | "post";
   metrics?: {
     like_count: number;
     retweet_count: number;
@@ -21,8 +21,14 @@ type Trend = {
 };
 
 export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
-  const { data: trends = [], isLoading, refetch, error, isError } = useQuery({
-    queryKey: ['career-trends', userId],
+  const {
+    data: trends = [],
+    isLoading,
+    refetch,
+    error,
+    isError,
+  } = useQuery({
+    queryKey: ["career-trends", userId],
     queryFn: async () => {
       try {
         // Fetch user data to get subject
@@ -38,10 +44,12 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
           throw new Error("Failed to fetch user data");
         }
 
-        const subject = userData.user?.subjects?.[0] || 'Career Development';
+        const subject = userData.user?.subjects?.[0] || "Career Development";
 
         // Fetch trends based on subject
-        const trendsResponse = await fetch(`/api/career-trends/${encodeURIComponent(subject)}`);
+        const trendsResponse = await fetch(
+          `/api/career-trends/${encodeURIComponent(subject)}`,
+        );
 
         if (!trendsResponse.ok) {
           throw new Error(`HTTP error! status: ${trendsResponse.status}`);
@@ -55,7 +63,7 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
 
         return Array.isArray(trendsData.data) ? trendsData.data : [];
       } catch (error) {
-        console.error('Error fetching trends:', error);
+        console.error("Error fetching trends:", error);
         return [];
       }
     },
@@ -69,19 +77,20 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
           <TrendingUp className="h-5 w-5" />
           Career Trend Insights
         </CardTitle>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={() => refetch()}
           disabled={isLoading}
           title="Refresh trends"
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          Discover the latest trends and opportunities in your field, updated regularly with industry insights.  Links open in a new tab.
+          Discover the latest trends and opportunities in your field, updated
+          regularly with industry insights. Links open in a new tab.
         </p>
         <div className="space-y-4">
           {isError ? (
@@ -96,20 +105,27 @@ export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
             trends.map((trend: Trend) => (
               <div key={trend.id} className="flex items-start space-x-4">
                 <div className="rounded-full bg-muted p-2">
-                  {trend.type === 'post' ? <X className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                  {trend.type === "post" ? (
+                    <X className="h-4 w-4" />
+                  ) : (
+                    <BookOpen className="h-4 w-4" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium">{trend.title}</h3>
-                  <p className="text-sm text-muted-foreground">{trend.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {trend.description}
+                  </p>
                   {trend.metrics && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      ♥ {trend.metrics.like_count} · 🔄 {trend.metrics.retweet_count}
+                      ♥ {trend.metrics.like_count} · 🔄{" "}
+                      {trend.metrics.retweet_count}
                     </p>
                   )}
-                  <a 
+                  <a
                     href={trend.url}
                     target="_blank"
-                    rel="noopener noreferrer" 
+                    rel="noopener noreferrer"
                     className="text-xs text-primary hover:underline mt-1 inline-block"
                   >
                     Learn more →
