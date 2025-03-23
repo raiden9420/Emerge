@@ -67,66 +67,36 @@ Response must be only the JSON array, no other text.`;
 
 export async function getCourseRecommendation(profile: any) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const prompt = `Based on this user profile with subjects: ${profile.subjects.join(", ")}, interests: ${profile.interests}, and skills: ${profile.skills}, recommend a real, currently available Udemy course.
+    if (!profile.subjects?.[0]) {
+      throw new Error("No subjects found in profile");
+    }
 
-Important: Please provide ONLY real, existing Udemy courses with their actual URLs. The URL should be in the format "https://www.udemy.com/course/[course-slug]". Verify the course exists before suggesting.
+    const { searchClassCentralCourses } = await import('./classcentral');
+    const course = await searchClassCentralCourses(profile.subjects[0]);
 
-Format the response as a JSON object with properties:
-- title: The exact Udemy course title
-- description: The actual course description from Udemy
-- duration: Real course duration
-- level: Actual course difficulty level
-- platform: "Udemy"
-- url: The complete, real Udemy course URL
-
-Example format:
-{
-  "title": "Python for Everybody Specialization",
-  "description": "Learn to Program and Analyze Data with Python",
-  "duration": "8 months",
-  "level": "Beginner",
-  "platform": "Coursera",
-  "url": "https://www.coursera.org/specializations/python"
-}`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    console.log("Raw Gemini response:", text);
-
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
-      }
-      const course = JSON.parse(jsonMatch[0]);
-
+    if (course) {
       return {
         success: true,
-        course: {
-          title: course.title || `${profile.subjects[0]} Fundamentals`,
-          description: course.description || "Master essential skills and concepts",
-          duration: course.duration || "Self-paced",
-          level: course.level || "All levels",
-          platform: "LinkedIn Learning",
-          url: `https://www.linkedin.com/learning/search?keywords=${encodeURIComponent(profile.subjects[0])}`
-        }
-      };
-    } catch (parseError) {
-      console.error("Error parsing course recommendation:", parseError);
-      const fallbackSubject = profile.subjects[0] || "career-development";
-      return {
-        success: true,
-        course: {
-          title: `Explore ${fallbackSubject.replace('-', ' ')} Courses`,
-          description: `Browse top-rated courses in ${fallbackSubject.replace('-', ' ')}`,
-          duration: "Self-paced",
-          level: "All levels",
-          platform: "Coursera",
-          url: `https://www.coursera.org/browse/${encodeURIComponent(fallbackSubject)}`
-        }
+        course
       };
     }
+
+    throw new Error("No courses found");
+  } catch (error) {
+    console.error('Course recommendation error:', error);
+    const fallbackSubject = profile.subjects?.[0] || "career-development";
+    return {
+      success: true,
+      course: {
+        title: `${fallbackSubject} Fundamentals`,
+        description: `Learn essential ${fallbackSubject} concepts and skills`,
+        duration: "Self-paced",
+        level: "All levels", 
+        platform: "Class Central",
+        url: `https://www.classcentral.com/search?q=${encodeURIComponent(fallbackSubject)}`
+      }
+    };
+  }
   } catch (error) {
     console.error('Gemini API error:', error);
     return { 
