@@ -1,5 +1,11 @@
-// In a real app, we would use the YouTube Data API here
-// This is a simplified version without actual API calls
+
+import axios from 'axios';
+
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+if (!YOUTUBE_API_KEY) {
+  throw new Error('YOUTUBE_API_KEY environment variable is required');
+}
 
 type VideoRecommendation = {
   title: string;
@@ -10,57 +16,42 @@ type VideoRecommendation = {
 };
 
 export async function fetchYoutubeRecommendations(subject: string): Promise<VideoRecommendation> {
-  console.log("Fetching YouTube recommendations for subject:", subject);
-  
-  // Instead of actual API calls, return dummy data based on subject
-  let videoRecommendation: VideoRecommendation;
-  
-  switch (subject) {
-    case 'Computer Science':
-      videoRecommendation = {
-        title: "How to Ace Your Technical Interview in 2023",
-        description: "Learn the strategies that top candidates use to stand out",
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-        channelTitle: "CS Career Insights"
-      };
-      break;
-    case 'Biology':
-      videoRecommendation = {
-        title: "PCR Basics 2023: What Every Biology Student Should Know",
-        description: "Master the fundamentals of Polymerase Chain Reaction",
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-        channelTitle: "Biology Explained"
-      };
-      break;
-    case 'Literature':
-      videoRecommendation = {
-        title: "Literary Analysis Techniques for Contemporary Fiction",
-        description: "Critical approaches to analyzing modern literature",
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-        channelTitle: "Literary Hub"
-      };
-      break;
-    case 'Engineering':
-      videoRecommendation = {
-        title: "Engineering Design Process: From Concept to Prototype",
-        description: "A step-by-step guide to the engineering design workflow",
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-        channelTitle: "Engineering Academy"
-      };
-      break;
-    default:
-      videoRecommendation = {
-        title: "Career Development Essentials for " + subject,
-        description: "Learn the fundamentals of career planning and growth in " + subject,
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-        channelTitle: "Career Insights"
-      };
+  try {
+    const searchQuery = `${subject} career guide tutorial`;
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+      params: {
+        part: 'snippet',
+        q: searchQuery,
+        type: 'video',
+        maxResults: 1,
+        relevanceLanguage: 'en',
+        key: YOUTUBE_API_KEY,
+        videoEmbeddable: true,
+        order: 'relevance'
+      }
+    });
+
+    const video = response.data.items[0];
+    if (!video) {
+      throw new Error('No videos found');
+    }
+
+    return {
+      title: video.snippet.title,
+      description: video.snippet.description,
+      url: `https://www.youtube.com/watch?v=${video.id.videoId}`,
+      thumbnailUrl: video.snippet.thumbnails.medium.url,
+      channelTitle: video.snippet.channelTitle
+    };
+  } catch (error) {
+    console.error('YouTube API error:', error);
+    // Fallback video recommendation
+    return {
+      title: `${subject} Career Guide`,
+      description: "Career development and guidance",
+      url: "https://www.youtube.com/results?search_query=" + encodeURIComponent(`${subject} career guide`),
+      thumbnailUrl: "https://img.youtube.com/vi/default/mqdefault.jpg",
+      channelTitle: "Career Insights"
+    };
   }
-  
-  return videoRecommendation;
 }
