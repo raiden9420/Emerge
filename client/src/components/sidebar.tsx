@@ -7,7 +7,8 @@ import {
   BookOpen,
   Settings,
   HelpCircle,
-  Menu
+  Menu,
+  LogOut
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
