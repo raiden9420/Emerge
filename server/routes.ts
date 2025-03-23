@@ -757,24 +757,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get existing video recommendations
-      const existingRecommendations = await storage.getRecommendationsByUserId(userId, 'video');
-      if (existingRecommendations.length > 0) {
-        // Return the most recent video recommendation
-        const recentVideo = existingRecommendations[0];
-        return res.json({
-          success: true,
-          data: {
-            video: {
-              title: recentVideo.title,
-              description: recentVideo.description || "",
-              url: recentVideo.url,
-              thumbnailUrl: recentVideo.metadata?.thumbnailUrl || "",
-              channelTitle: recentVideo.metadata?.channelTitle || ""
-            }
-          }
+      const user = await storage.getUser(userId);
+      if (!user || !user.subjects || user.subjects.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User or subjects not found"
         });
       }
+      
+      // Get fresh recommendation based on user's first subject
+      const subject = user.subjects[0];
       
       // In a real app, fetch from YouTube Data API
       // For now, create a dummy recommendation
