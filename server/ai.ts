@@ -3,7 +3,7 @@ import { User } from "@shared/schema";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "";
 
-export async function generateGoalSuggestions(user: User, count = 5): Promise<string[]> {
+export async function generateGoalSuggestions(user: User, count = 1): Promise<string[]> {
   try {
     // Skip in development if no API key is available
     if (!GEMINI_API_KEY) {
