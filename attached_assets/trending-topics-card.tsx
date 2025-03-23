@@ -20,45 +20,43 @@ type Trend = {
   };
 };
 
+async function fetchTrends(subject: string) {
+  try {
+    const response = await fetch(`/api/career-trends/${encodeURIComponent(subject)}`);
+    if (!response.ok) {
+      console.error(`API response not ok: ${response.status}`);
+      throw new Error('Failed to fetch trends');
+    }
+    const data = await response.json();
+    if (!data.success) {
+      console.error('API returned error:', data.message);
+      throw new Error(data.message || 'Failed to fetch trends');
+    }
+    return data.data;
+  } catch (error) {
+    console.error('Error in fetchTrends:', error);
+    throw error;
+  }
+}
+
 export function TrendingTopicsCard({ userId }: TrendingTopicsProps) {
   const { data: trends = [], isLoading, refetch, error, isError } = useQuery({
     queryKey: ['career-trends', userId],
     queryFn: async () => {
       try {
-        // Fetch user data to get subject
         const userResponse = await fetch(`/api/user/${userId}`);
-        
-        if (!userResponse.ok) {
-          throw new Error(`HTTP error! status: ${userResponse.status}`);
-        }
-        
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
         const userData = await userResponse.json();
-        
-        if (!userData.success) {
-          throw new Error("Failed to fetch user data");
-        }
-        
+        if (!userData.success) throw new Error('Failed to fetch user data');
         const subject = userData.user?.subjects?.[0] || 'Career Development';
-        
-        // Fetch trends based on subject
-        const trendsResponse = await fetch(`/api/career-trends/${encodeURIComponent(subject)}`);
-        
-        if (!trendsResponse.ok) {
-          throw new Error(`HTTP error! status: ${trendsResponse.status}`);
-        }
-        
-        const trendsData = await trendsResponse.json();
-        
-        if (!trendsData.success) {
-          throw new Error(trendsData.message || "Failed to fetch trends data");
-        }
-        
-        return Array.isArray(trendsData.data) ? trendsData.data : [];
+        const trends = await fetchTrends(subject);
+        return Array.isArray(trends) ? trends : [];
       } catch (error) {
         console.error('Error fetching trends:', error);
         return [];
       }
     },
+    enabled: !!userId,
     refetchInterval: 1000 * 60 * 30, // Refresh every 30 minutes
   });
 

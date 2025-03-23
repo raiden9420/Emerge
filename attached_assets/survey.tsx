@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 // Define the form schema with Zod
 const formSchema = z.object({
@@ -29,7 +30,6 @@ const formSchema = z.object({
   goal: z.string().min(1, "Please enter a goal"),
   thinking_style: z.enum(["Plan", "Flow"]),
   extra_info: z.string().optional(),
-  avatar: z.string().optional(),
 });
 
 // Define the subjects available for selection
@@ -67,7 +67,6 @@ export default function Survey() {
       goal: "",
       thinking_style: "Plan",
       extra_info: "",
-      avatar: "",
     },
   });
 
@@ -76,47 +75,20 @@ export default function Survey() {
     setIsSubmitting(true);
 
     try {
-      // Check if we have a user ID in localStorage (for existing users)
-      const existingUserId = localStorage.getItem('userId');
-      
-      // Make sure subjects is an array
-      const formattedValues = {
-        ...values,
-        username: values.email, // Use email as username for simplicity
-        password: "password123", // Default password in a real app this would be set by user
-        // Ensure subjects is an array even if it's empty
-        subjects: Array.isArray(values.subjects) ? values.subjects : [],
-        // Include user_id if it exists (for profile updates)
-        user_id: existingUserId ? parseInt(existingUserId) : undefined
-      };
-      
-      console.log('Submitting survey with data:', formattedValues);
-      
-      // Call our Express API
+      // Use the apiRequest function to call our Express API
       const response = await fetch('/api/survey', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedValues),
+        body: JSON.stringify(values),
       });
 
-      console.log('Survey submission response status:', response.status);
-      
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}, message: ${responseText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch(e) {
-        console.error('Failed to parse response JSON:', e);
-        throw new Error(`Invalid response format: ${responseText}`);
-      }
+      const data = await response.json();
 
       if (data && data.success) {
         toast({
@@ -132,13 +104,13 @@ export default function Survey() {
         // Redirect to dashboard
         navigate("/dashboard");
       } else {
-        throw new Error(data.message || "Failed to submit survey");
+        throw new Error("Failed to submit survey");
       }
     } catch (error) {
       console.error("Error submitting survey:", error);
       toast({
         title: "Submission Failed",
-        description: error instanceof Error ? error.message : "Please try again later.",
+        description: "Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -176,43 +148,43 @@ export default function Survey() {
                     </FormControl>
                     <FormMessage />
 
-                    <FormField
-                      control={form.control}
-                      name="avatar"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Profile Picture (Optional)</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-20 w-20 border-2">
-                                <AvatarImage src={field.value || undefined} />
-                                <AvatarFallback>
-                                  <Upload className="h-8 w-8 text-muted-foreground" />
-                                </AvatarFallback>
-                              </Avatar>
-                              <Input
-                                type="file"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = () => {
-                                      field.onChange(reader.result);
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Upload a profile picture or leave empty to use default avatar
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+  <FormField
+    control={form.control}
+    name="avatar"
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>Profile Picture (Optional)</FormLabel>
+        <FormControl>
+          <div className="flex items-center gap-4">
+            <Avatar className="h-20 w-20 border-2">
+              <AvatarImage src={field.value || undefined} />
+              <AvatarFallback>
+                <Upload className="h-8 w-8 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    field.onChange(reader.result);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+          </div>
+        </FormControl>
+        <FormDescription>
+          Upload a profile picture or leave empty to use default avatar
+        </FormDescription>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
 
                   </FormItem>
                 )}
@@ -359,24 +331,9 @@ export default function Survey() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Career Goal</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your goal" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Internship">Find an Internship</SelectItem>
-                        <SelectItem value="Job">Get a Full-time Job</SelectItem>
-                        <SelectItem value="Learn">Learn More About My Field</SelectItem>
-                        <SelectItem value="NotSure">I'm Not Sure Yet</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input placeholder="Your Career Goal" {...field} />
                     <FormDescription>
-                      What's your primary career objective right now?
+                      What are you looking to achieve in the near future?
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -389,27 +346,27 @@ export default function Survey() {
                 name="thinking_style"
                 render={({ field }) => (
                   <FormItem className="space-y-3">
-                    <FormLabel>Learning Style Preference</FormLabel>
+                    <FormLabel>Thinking Style</FormLabel>
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        className="flex flex-col space-y-1"
+                        className="flex space-x-4"
                       >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
                             <RadioGroupItem value="Plan" />
                           </FormControl>
                           <FormLabel className="font-normal">
-                            Planner: I prefer structured learning paths
+                            Plan: I prefer structure and organization
                           </FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormItem className="flex items-center space-x-2 space-y-0">
                           <FormControl>
                             <RadioGroupItem value="Flow" />
                           </FormControl>
                           <FormLabel className="font-normal">
-                            Flow: I prefer exploratory learning
+                            Flow: I prefer flexibility and adaptation
                           </FormLabel>
                         </FormItem>
                       </RadioGroup>
@@ -419,42 +376,33 @@ export default function Survey() {
                 )}
               />
 
+              
+
               {/* Extra Info */}
               <FormField
                 control={form.control}
                 name="extra_info"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Anything else you'd like to share?</FormLabel>
+                    <FormLabel>Extra Information (Optional)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Any additional information that might help us personalize your experience..."
+                        placeholder="Share anything else that might help us personalize your experience..."
                         className="resize-none"
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      This is optional but helps us tailor recommendations to your specific needs.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Submit Button */}
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-r-transparent"></span>
-                    Processing...
-                  </>
-                ) : (
-                  "Start My Career Journey"
-                )}
+                {isSubmitting ? "Submitting..." : "Start My Journey"}
               </Button>
             </form>
           </Form>

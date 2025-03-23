@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,27 +30,20 @@ export function GoalsCard({ goals, userId }: GoalsCardProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch('/api/goals', {
+      const response = await apiRequest("/api/goals", {
         method: "POST",
         body: JSON.stringify({
-          user_id: userId,
-          title: newGoalText,
+          task: newGoalText,
           completed: false,
-          progress: 0
+          userId
         }),
         headers: {
           "Content-Type": "application/json"
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to add goal');
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to add goal');
       }
 
       // Reset form
@@ -60,13 +54,12 @@ export function GoalsCard({ goals, userId }: GoalsCardProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/${userId}`] });
 
       // Create activity for the new goal
-      await fetch('/api/activities', {
+      await apiRequest("/api/activities", {
         method: "POST",
         body: JSON.stringify({
-          user_id: userId,
-          type: "lesson",
-          title: `Created new goal: ${newGoalText}`,
-          is_recent: true
+          userId,
+          type: "goal_created",
+          title: `Created new goal: ${newGoalText}`
         }),
         headers: {
           "Content-Type": "application/json"
@@ -92,7 +85,7 @@ export function GoalsCard({ goals, userId }: GoalsCardProps) {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/goals/${goalId}`, {
+      await apiRequest(`/api/goals/${goalId}`, {
         method: 'PUT',
         body: JSON.stringify({ completed }),
         headers: {
@@ -100,24 +93,16 @@ export function GoalsCard({ goals, userId }: GoalsCardProps) {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       if (completed) {
         // Wait a moment to show strike-through
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const deleteResponse = await fetch(`/api/goals/${goalId}`, {
+        await apiRequest(`/api/goals/${goalId}`, {
           method: 'DELETE'
         });
-        
-        if (!deleteResponse.ok) {
-          throw new Error(`HTTP error! status: ${deleteResponse.status}`);
-        }
       }
 
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/todos/${userId}`] });
     } catch (error) {
       console.error('Error updating goal:', error);
       toast({
@@ -133,20 +118,14 @@ export function GoalsCard({ goals, userId }: GoalsCardProps) {
   const handleRefreshSuggestions = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/goals/suggest/${userId}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to refresh goals');
+      const response = await apiRequest(`/api/goals/suggest/${userId}`);
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to refresh goals');
       }
 
       // Force an immediate refetch of dashboard data and update UI
       await queryClient.invalidateQueries({ queryKey: [`/api/dashboard/${userId}`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/dashboard/${userId}`], type: 'active' });
 
       // Show success toast
       toast({
@@ -237,7 +216,7 @@ export function GoalsCard({ goals, userId }: GoalsCardProps) {
             onClick={handleRefreshSuggestions}
             disabled={isLoading}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className="mr-2 h-4 w-4" />
             Refresh Suggestions
           </Button>
         </div>
