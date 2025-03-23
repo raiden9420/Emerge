@@ -12,62 +12,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Survey submission
   app.post("/api/survey", async (req: Request, res: Response) => {
     try {
+      console.log("Survey submission received:", JSON.stringify(req.body, null, 2));
+      
+      // Validate the request body but be more flexible with subjects
       const surveySchema = insertUserSchema.extend({
-        subjects: z.array(z.string()).min(1, "Please select at least one subject"),
+        subjects: z.array(z.string()).optional().default([]),
+        username: z.string().optional(),
+        password: z.string().optional().default("password123"),
       });
       
-      const data = surveySchema.parse(req.body);
-      
-      // Check if user already exists
-      const existingUser = await storage.getUserByUsername(data.username || "");
-      if (existingUser) {
+      let data;
+      try {
+        data = surveySchema.parse(req.body);
+      } catch (parseError) {
+        console.error("Survey validation error:", parseError);
         return res.status(400).json({ 
           success: false, 
-          message: "Username already taken" 
+          message: "Invalid survey data: " + (parseError instanceof Error ? parseError.message : String(parseError))
         });
       }
       
-      // Create the user
-      const user = await storage.createUser({
-        username: data.username || data.email,
-        password: data.password || "password123", // In a real app, hash the password
-        name: data.name,
-        email: data.email,
-        avatar: data.avatar,
-        subjects: data.subjects,
-        interests: data.interests,
-        skills: data.skills,
-        goal: data.goal,
-        thinking_style: data.thinking_style,
-        extra_info: data.extra_info
-      });
-      
-      // Generate initial goals
-      const initialGoals = await generateGoalSuggestions(user);
-      if (initialGoals && initialGoals.length > 0) {
-        for (const goalText of initialGoals) {
-          await storage.createGoal({
-            user_id: user.id,
-            title: goalText,
-            completed: false,
-            progress: 0
-          });
-        }
+      // Generate a username if not provided
+      if (!data.username) {
+        // Extract part before @ from email or use 'user' as fallback
+        const baseUsername = data.email ? data.email.split('@')[0] : 'user';
+        // Add random numbers to ensure uniqueness
+        data.username = `${baseUsername}${Math.floor(Math.random() * 10000)}`;
       }
       
-      // Create initial activity
-      await storage.createActivity({
-        user_id: user.id,
-        type: "lesson",
-        title: "Joined Emerge Career Platform",
-        is_recent: true
-      });
+      // Ensure we have an array for subjects even if it's empty
+      const subjects = Array.isArray(data.subjects) ? data.subjects : [];
       
-      return res.json({ 
-        success: true, 
-        message: "Survey submitted successfully", 
-        userId: user.id 
-      });
+      try {
+        // Create the user with proper handling of arrays
+        const user = await storage.createUser({
+          username: data.username,
+          password: data.password,
+          name: data.name,
+          email: data.email,
+          avatar: data.avatar,
+          subjects: subjects,
+          interests: data.interests || '',
+          skills: data.skills || '',
+          goal: data.goal || '',
+          thinking_style: data.thinking_style || 'Plan',
+          extra_info: data.extra_info || ''
+        });
+        
+        console.log("User created successfully:", user.id);
+        
+        try {
+          // Import the goal suggestion generator from gemini.ts
+          const { generateGoalSuggestions } = await import("./lib/gemini");
+          
+          // Generate initial goals
+          const initialGoals = await generateGoalSuggestions(user);
+          
+          if (initialGoals && initialGoals.length > 0) {
+            for (const goalText of initialGoals) {
+              await storage.createGoal({
+                user_id: user.id,
+                title: goalText,
+                completed: false,
+                progress: 0
+              });
+            }
+            
+            console.log(`Created ${initialGoals.length} initial goals for user ${user.id}`);
+          }
+        } catch (goalError) {
+          console.error("Error generating initial goals:", goalError);
+          // Continue even if goal creation fails
+        }
+        
+        try {
+          // Create initial activity
+          await storage.createActivity({
+            user_id: user.id,
+            type: "lesson",
+            title: "Joined Emerge Career Platform",
+            is_recent: true
+          });
+          
+          console.log(`Created initial activity for user ${user.id}`);
+        } catch (activityError) {
+          console.error("Error creating initial activity:", activityError);
+          // Continue even if activity creation fails
+        }
+        
+        return res.json({ 
+          success: true, 
+          message: "Survey submitted successfully", 
+          userId: user.id 
+        });
+      } catch (userError) {
+        console.error("Error creating user:", userError);
+        return res.status(400).json({ 
+          success: false, 
+          message: userError instanceof Error ? userError.message : "Failed to create user" 
+        });
+      }
     } catch (error) {
       console.error("Error submitting survey:", error);
       return res.status(400).json({ 
