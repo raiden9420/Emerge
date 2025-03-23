@@ -74,28 +74,17 @@ export async function getCourseRecommendation(profile: any) {
     const { searchClassCentralCourses } = await import('./classcentral');
     const course = await searchClassCentralCourses(profile.subjects[0]);
 
-    if (course) {
-      return {
-        success: true,
-        course
-      };
+    if (!course) {
+      throw new Error("No courses found");
     }
 
-    throw new Error("No courses found");
-  } catch (error) {
-    console.error('Course recommendation error:', error);
-    const fallbackSubject = profile.subjects?.[0] || "career-development";
     return {
       success: true,
-      course: {
-        title: `${fallbackSubject} Fundamentals`,
-        description: `Learn essential ${fallbackSubject} concepts and skills`,
-        duration: "Self-paced",
-        level: "All levels", 
-        platform: "Class Central",
-        url: `https://www.classcentral.com/search?q=${encodeURIComponent(fallbackSubject)}`
-      }
+      course
     };
+  } catch (error) {
+    console.error('Course recommendation error:', error);
+    throw error;
   }
 }
 
