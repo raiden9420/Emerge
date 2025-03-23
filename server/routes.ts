@@ -568,8 +568,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "User not found" 
         });
       }
+
+      if (!user.subjects?.length) {
+        return res.status(400).json({
+          success: false,
+          message: "User profile incomplete. Please add subjects of interest."
+        });
+      }
       
-      const goalSuggestions = await generateGoalSuggestions(user);
+      const goalSuggestions = await generateGoalSuggestions(user, 3);
+      
+      // Clear existing goals
+      await storage.clearUserGoals(userId);
       
       // Create the goals
       if (goalSuggestions && goalSuggestions.length > 0) {

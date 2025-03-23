@@ -4,15 +4,16 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "";
 
 export async function generateGoalSuggestions(user: User, count = 1): Promise<string[]> {
-  try {
-    // Skip if no API key is available
-    if (!GEMINI_API_KEY) {
-      console.log("No Gemini API key available. Cannot generate goals.");
-      return [];
-    }
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY environment variable is required");
+  }
 
-    const subjectsString = user.subjects?.join(", ") || "";
-    const prompt = `Suggest ${count} specific and actionable career development goals focused on the subjects: ${subjectsString}
+  if (!user.subjects?.length) {
+    throw new Error("User subjects are required for goal generation");
+  }
+
+  const subjectsString = user.subjects.join(", ");
+  const prompt = `Suggest ${count} specific and actionable career development goals focused on the subjects: ${subjectsString}
     Consider these aspects - Current Skills: ${user.skills}, Interests: ${user.interests}
     Their thinking style is: ${user.thinking_style} and career goal is: ${user.goal}
 
