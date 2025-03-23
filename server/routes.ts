@@ -750,14 +750,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "User not found" 
-        });
-      }
-      
-      const user = await storage.getUser(userId);
       if (!user || !user.subjects || user.subjects.length === 0) {
         return res.status(404).json({
           success: false,
@@ -766,11 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get fresh recommendation based on user's first subject
-      const subject = user.subjects[0];
-      
-      // In a real app, fetch from YouTube Data API
-      // For now, create a dummy recommendation
-      const subject = user.subjects?.[0] || 'Career Development';
+      const subject = user.subjects[0] || 'Career Development';
       const videoRecommendation = await fetchYoutubeRecommendations(subject);
       
       // Save the recommendation
