@@ -7,8 +7,7 @@ import {
   BookOpen,
   Settings,
   HelpCircle,
-  Menu,
-  LogOut
+  Menu
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
@@ -151,50 +150,7 @@ export function Sidebar({ user }: SidebarProps) {
                 Settings
               </a>
             </Link>
-            <button 
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                  });
-                  if (response.ok) {
-                    localStorage.clear();
-                    window.location.href = '/auth';
-                  }
-                } catch (error) {
-                  console.error('Logout failed:', error);
-                }
-              }}
-              className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              Logout
-            </button>
-            <button 
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                  });
-                  
-                  if (response.ok) {
-                    localStorage.clear(); // Clear all localStorage data
-                    window.location.href = '/auth'; // Redirect to auth page
-                  } else {
-                    throw new Error('Logout failed');
-                  }
-                } catch (error) {
-                  console.error('Logout failed:', error);
-                  // Could add toast notification here for error feedback
-                }
-              }}
-              className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              Log Out
-            </button>
+            
           </div>
         </div>
       </aside>
