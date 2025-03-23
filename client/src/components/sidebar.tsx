@@ -152,9 +152,20 @@ export function Sidebar({ user }: SidebarProps) {
               </a>
             </Link>
             <button 
-              onClick={() => {
-                localStorage.removeItem('userId');
-                window.location.href = '/auth';
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                  });
+                  
+                  if (response.ok) {
+                    localStorage.removeItem('userId');
+                    window.location.href = '/auth';
+                  }
+                } catch (error) {
+                  console.error('Logout failed:', error);
+                }
               }}
               className="flex items-center px-3 py-2 w-full text-sm font-medium rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
             >

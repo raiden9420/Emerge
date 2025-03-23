@@ -60,6 +60,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    try {
+      // In a real app, you might want to invalidate sessions or tokens here
+      return res.json({
+        success: true,
+        message: "Logged out successfully"
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Logout failed"
+      });
+    }
+  });
+
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
