@@ -96,10 +96,6 @@ export async function getCourseRecommendation(profile: any) {
         url: `https://www.classcentral.com/search?q=${encodeURIComponent(fallbackSubject)}`
       }
     };
-  } 
-      success: false, 
-      message: error instanceof Error ? error.message : "Failed to generate course recommendation"
-    };
   }
 }
 
