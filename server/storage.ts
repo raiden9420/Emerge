@@ -5,6 +5,8 @@ import {
   chatHistory, type ChatMessage, type InsertChatMessage,
   recommendations, type Recommendation, type InsertRecommendation
 } from "@shared/schema";
+import { eq, and, desc } from "drizzle-orm";
+import { db } from "./db";
 
 // Modify the interface with CRUD methods
 export interface IStorage {
@@ -35,227 +37,160 @@ export interface IStorage {
   deleteRecommendation(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private usersMap: Map<number, User>;
-  private goalsMap: Map<number, Goal>;
-  private activitiesMap: Map<number, Activity>;
-  private chatHistoryMap: Map<number, ChatMessage>;
-  private recommendationsMap: Map<number, Recommendation>;
-  
-  private userId: number;
-  private goalId: number;
-  private activityId: number;
-  private chatId: number;
-  private recommendationId: number;
-
-  constructor() {
-    this.usersMap = new Map();
-    this.goalsMap = new Map();
-    this.activitiesMap = new Map();
-    this.chatHistoryMap = new Map();
-    this.recommendationsMap = new Map();
-    
-    this.userId = 1;
-    this.goalId = 1;
-    this.activityId = 1;
-    this.chatId = 1;
-    this.recommendationId = 1;
-    
-    // Add demo user
-    this.createUser({
-      username: "demo",
-      password: "password",
-      name: "John Doe",
-      email: "john@example.com",
-      subjects: ["Computer Science"],
-      interests: "Programming, AI, Machine Learning",
-      skills: "JavaScript, Python, React",
-      goal: "Internship",
-      thinking_style: "Plan",
-      extra_info: "Looking for summer internships in tech"
-    });
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.usersMap.get(id);
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.username === username,
-    );
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userId++;
-    const level = 1;
-    const progress = 0;
-    const created_at = new Date();
-    const updated_at = new Date();
-    
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      level, 
-      progress, 
-      created_at, 
-      updated_at 
-    };
-    
-    this.usersMap.set(id, user);
-    return user;
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
-    const user = this.usersMap.get(id);
-    if (!user) return undefined;
-    
-    const updated = { 
-      ...user, 
-      ...userData,
-      updated_at: new Date()
-    };
-    
-    this.usersMap.set(id, updated);
-    return updated;
+    if (!db) throw new Error("Database not initialized");
+    const now = new Date();
+    const result = await db
+      .update(users)
+      .set({ ...userData, updated_at: now })
+      .where(eq(users.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
   }
   
   async updateUserProgress(id: number, increment: number): Promise<User | undefined> {
-    const user = this.usersMap.get(id);
-    if (!user) return undefined;
+    if (!db) throw new Error("Database not initialized");
     
-    const newProgress = Math.min(100, (user.progress || 0) + increment);
-    let newLevel = user.level || 1;
+    // First get the current user
+    const currentUser = await this.getUser(id);
+    if (!currentUser) return undefined;
+    
+    const newProgress = Math.min(100, (currentUser.progress || 0) + increment);
+    let newLevel = currentUser.level || 1;
     
     // If progress reaches 100%, level up and reset progress
     if (newProgress >= 100) {
       newLevel += 1;
     }
     
-    const updated = { 
-      ...user, 
-      progress: newProgress % 100,
-      level: newLevel,
-      updated_at: new Date()
-    };
-    
-    this.usersMap.set(id, updated);
-    return updated;
+    // Update the user
+    const result = await db
+      .update(users)
+      .set({ 
+        progress: newProgress % 100, 
+        level: newLevel,
+        updated_at: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+      
+    return result.length > 0 ? result[0] : undefined;
   }
 
   // Goals methods
   async getGoalsByUserId(userId: number): Promise<Goal[]> {
-    return Array.from(this.goalsMap.values()).filter(
-      (goal) => goal.user_id === userId
-    );
+    if (!db) throw new Error("Database not initialized");
+    return db.select().from(goals).where(eq(goals.user_id, userId));
   }
   
   async createGoal(insertGoal: InsertGoal): Promise<Goal> {
-    const id = this.goalId++;
-    const created_at = new Date();
-    const updated_at = new Date();
-    
-    const goal: Goal = { 
-      ...insertGoal, 
-      id, 
-      created_at, 
-      updated_at 
-    };
-    
-    this.goalsMap.set(id, goal);
-    return goal;
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.insert(goals).values(insertGoal).returning();
+    return result[0];
   }
   
   async updateGoal(id: number, goalData: Partial<Goal>): Promise<Goal | undefined> {
-    const goal = this.goalsMap.get(id);
-    if (!goal) return undefined;
-    
-    const updated = { 
-      ...goal, 
-      ...goalData,
-      updated_at: new Date()
-    };
-    
-    this.goalsMap.set(id, updated);
-    return updated;
+    if (!db) throw new Error("Database not initialized");
+    const now = new Date();
+    const result = await db
+      .update(goals)
+      .set({ ...goalData, updated_at: now })
+      .where(eq(goals.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
   }
   
   async deleteGoal(id: number): Promise<boolean> {
-    return this.goalsMap.delete(id);
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.delete(goals).where(eq(goals.id, id)).returning();
+    return result.length > 0;
   }
 
   // Activities methods
   async getActivitiesByUserId(userId: number): Promise<Activity[]> {
-    return Array.from(this.activitiesMap.values())
-      .filter((activity) => activity.user_id === userId)
-      .sort((a, b) => b.time.getTime() - a.time.getTime()); // Sort by time (newest first)
+    if (!db) throw new Error("Database not initialized");
+    return db
+      .select()
+      .from(activities)
+      .where(eq(activities.user_id, userId))
+      .orderBy(desc(activities.time));
   }
   
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
-    const id = this.activityId++;
-    const time = insertActivity.time || new Date();
-    
-    const activity: Activity = { 
-      ...insertActivity, 
-      id, 
-      time
-    };
-    
-    this.activitiesMap.set(id, activity);
-    return activity;
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.insert(activities).values(insertActivity).returning();
+    return result[0];
   }
 
   // Chat history methods
   async getChatHistoryByUserId(userId: number): Promise<ChatMessage[]> {
-    return Array.from(this.chatHistoryMap.values())
-      .filter((message) => message.user_id === userId)
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()); // Sort by timestamp
+    if (!db) throw new Error("Database not initialized");
+    return db
+      .select()
+      .from(chatHistory)
+      .where(eq(chatHistory.user_id, userId))
+      .orderBy(chatHistory.timestamp);
   }
   
   async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
-    const id = this.chatId++;
-    const timestamp = insertMessage.timestamp || new Date();
-    
-    const message: ChatMessage = { 
-      ...insertMessage, 
-      id, 
-      timestamp
-    };
-    
-    this.chatHistoryMap.set(id, message);
-    return message;
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.insert(chatHistory).values(insertMessage).returning();
+    return result[0];
   }
 
   // Recommendations methods
   async getRecommendationsByUserId(userId: number, type?: string): Promise<Recommendation[]> {
-    let recommendations = Array.from(this.recommendationsMap.values())
-      .filter((rec) => rec.user_id === userId);
-      
-    if (type) {
-      recommendations = recommendations.filter(rec => rec.type === type);
-    }
+    if (!db) throw new Error("Database not initialized");
     
-    return recommendations.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    if (type) {
+      return db
+        .select()
+        .from(recommendations)
+        .where(and(
+          eq(recommendations.user_id, userId),
+          eq(recommendations.type, type)
+        ))
+        .orderBy(desc(recommendations.created_at));
+    } else {
+      return db
+        .select()
+        .from(recommendations)
+        .where(eq(recommendations.user_id, userId))
+        .orderBy(desc(recommendations.created_at));
+    }
   }
   
   async createRecommendation(insertRecommendation: InsertRecommendation): Promise<Recommendation> {
-    const id = this.recommendationId++;
-    const created_at = new Date();
-    
-    const recommendation: Recommendation = { 
-      ...insertRecommendation, 
-      id, 
-      created_at
-    };
-    
-    this.recommendationsMap.set(id, recommendation);
-    return recommendation;
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.insert(recommendations).values(insertRecommendation).returning();
+    return result[0];
   }
   
   async deleteRecommendation(id: number): Promise<boolean> {
-    return this.recommendationsMap.delete(id);
+    if (!db) throw new Error("Database not initialized");
+    const result = await db.delete(recommendations).where(eq(recommendations.id, id)).returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

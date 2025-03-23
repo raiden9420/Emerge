@@ -7,6 +7,7 @@ import { WhatsNextCard } from "./whats-next-card";
 import { TrendingTopicsCard } from "./trending-topics-card";
 import { RecentActivityCard } from "./recent-activity-card";
 import { ThemeToggleCard } from "@/attached_assets/theme-toggle-card";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserProfile, DashboardData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import CareerCoach from "@/pages/career-coach";
