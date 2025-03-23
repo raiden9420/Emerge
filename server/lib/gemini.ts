@@ -1,4 +1,3 @@
-import { User } from "@shared/schema";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 if (!process.env.GEMINI_API_KEY) {
@@ -9,12 +8,12 @@ export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function suggestGoals(subjects: string[], skills: string, interests: string, count: number = 1): Promise<string[]> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Updated model name
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const subjectsString = subjects.join(", ");
-    const prompt = `Suggest ${count} specific and actionable career development goal focused on the subjects: ${subjectsString}
+    const prompt = `Suggest 1 specific and actionable career development goal focused on the subjects: ${subjectsString}
 Consider these aspects - Current Skills: ${skills}, Interests: ${interests}
 
-Based on these, suggest career development activities like:
+Based on the user's thinking style and career goals, suggest varied career development activities like:
 - Industry research and analysis
 - Skill-building exercises
 - Portfolio development
@@ -27,13 +26,14 @@ Requirements for goals:
 - Must be achievable in 1-2 hours
 - Should be specific and actionable
 - Vary between different types of activities
-- Focus on career exploration and professional development
+- Focus on career exploration and professional development in the subject field
 - Should help understand career paths and opportunities
 - Include industry-relevant skills or knowledge
 - Be specific and measurable
+- Example: "Research 2 companies hiring ${subjectsString.split(',')[0]} professionals and list their requirements"
 
 Format as JSON array of strings. Example:
-["Research and analyze 2 leading companies in ${subjectsString} sector", "Create a portfolio entry demonstrating ${skills}"]
+["Complete 3 linear algebra practice problems", "Write a 1-page summary of photosynthesis process"]
 
 Response must be only the JSON array, no other text.`;
 
@@ -45,155 +45,129 @@ Response must be only the JSON array, no other text.`;
     try {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.slice(0, count);
+        return parsed.slice(0, 1);
       }
-      throw new Error("Invalid response format from AI");
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      throw new Error("Failed to generate valid goals");
+    } catch (e) {
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          const goals = JSON.parse(match[0]);
+          return Array.isArray(goals) && goals.length > 0 ? [goals[0]] : [];
+        } catch (parseError) {
+          console.error("Error parsing Gemini response:", parseError);
+        }
+      }
     }
+
+    console.error("Could not generate valid goals from response");
+    return [];
   } catch (error) {
-    console.error("Gemini API error:", error);
-    throw error; // Propagate error to show in UI
+    console.error("Error generating goals with Gemini:", error);
+    return [];
   }
 }
 
-/**
- * Generates a course recommendation using Gemini AI based on user profile
- */
-export async function generateCourseRecommendation(user: User): Promise<{ 
-  title: string; 
-  description: string; 
-  duration: string; 
-  level: string; 
-  url: string; 
-}> {
+export async function getCourseRecommendation(profile: any) {
+  if (!profile) {
+    return { success: false, message: "Profile data is required" };
+  }
+
   try {
-    // Extract user information
-    const subject = user.subjects?.[0] || '';
-    const interests = user.interests || '';
-    const skills = user.skills || '';
-    const goal = user.goal || '';
-    
-    // Create a prompt for the Gemini model
-    const prompt = `Generate a detailed online course recommendation for a student with the following profile:
-    - Subject: ${subject}
-    - Interests: ${interests}
-    - Skills: ${skills}
-    - Career Goal: ${goal}
-    
-    The course should:
-    1. Be relevant to their academic subject and career goal
-    2. Help them build practical skills
-    3. Be beginner to intermediate level
-    
-    Provide details in this format:
-    - Course Title: [title]
-    - Description: [brief description of 2-3 sentences]
-    - Duration: [estimated time to complete]
-    - Level: [Beginner/Intermediate/Advanced]
-    - URL: [a realistic but fictional URL, for example: https://learning-platform.com/course-name]`;
-    
-    // Generate a response using the Gemini model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash"" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const prompt = `Based on this user profile with subjects: ${profile.subjects.join(", ")}, interests: ${profile.interests}, and skills: ${profile.skills}, recommend a real, currently available Udemy course.
+
+Important: Please provide ONLY real, existing Udemy courses with their actual URLs. The URL should be in the format "https://www.udemy.com/course/[course-slug]". Verify the course exists before suggesting.
+
+Format the response as a JSON object with properties:
+- title: The exact Udemy course title
+- description: The actual course description from Udemy
+- duration: Real course duration
+- level: Actual course difficulty level
+- platform: "Udemy"
+- url: The complete, real Udemy course URL
+
+Example format:
+{
+  "title": "Python for Everybody Specialization",
+  "description": "Learn to Program and Analyze Data with Python",
+  "duration": "8 months",
+  "level": "Beginner",
+  "platform": "Coursera",
+  "url": "https://www.coursera.org/specializations/python"
+}`;
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
-    // Parse the course details from the response
-    const titleMatch = text.match(/Course Title:?\s*(.*)/i);
-    const descriptionMatch = text.match(/Description:?\s*([\s\S]*?)(?=Duration:|Level:|URL:|$)/i);
-    const durationMatch = text.match(/Duration:?\s*(.*)/i);
-    const levelMatch = text.match(/Level:?\s*(.*)/i);
-    const urlMatch = text.match(/URL:?\s*(https?:\/\/[^\s]+)/i);
-    
-    return {
-      title: titleMatch?.[1]?.trim() || `${subject} Career Development Course`,
-      description: descriptionMatch?.[1]?.trim() || `Learn essential career skills for ${subject}`,
-      duration: durationMatch?.[1]?.trim() || "8 weeks",
-      level: levelMatch?.[1]?.trim() || "Beginner",
-      url: urlMatch?.[1]?.trim() || `https://career-courses.com/${subject.toLowerCase().replace(/\s+/g, '-')}`
-    };
+    console.log("Raw Gemini response:", text);
+
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON found in response");
+      }
+      const course = JSON.parse(jsonMatch[0]);
+
+      return {
+        success: true,
+        course: {
+          title: course.title || `${profile.subjects[0]} Fundamentals`,
+          description: course.description || "Master essential skills and concepts",
+          duration: course.duration || "Self-paced",
+          level: course.level || "All levels",
+          platform: "LinkedIn Learning",
+          url: `https://www.linkedin.com/learning/search?keywords=${encodeURIComponent(profile.subjects[0])}`
+        }
+      };
+    } catch (parseError) {
+      console.error("Error parsing course recommendation:", parseError);
+      const fallbackSubject = profile.subjects[0] || "career-development";
+      return {
+        success: true,
+        course: {
+          title: `Explore ${fallbackSubject.replace('-', ' ')} Courses`,
+          description: `Browse top-rated courses in ${fallbackSubject.replace('-', ' ')}`,
+          duration: "Self-paced",
+          level: "All levels",
+          platform: "Coursera",
+          url: `https://www.coursera.org/browse/${encodeURIComponent(fallbackSubject)}`
+        }
+      };
+    }
   } catch (error) {
-    console.error("Error generating course recommendation with Gemini:", error);
-    return getFallbackCourse(user.subjects?.[0] || '');
+    console.error('Gemini API error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Failed to generate course recommendation"
+    };
   }
 }
 
-/**
- * Generates a chat response for career coach using Gemini AI
- */
-export async function getChatResponse(message: string, userData: Partial<User>): Promise<string> {
+export async function getRecommendations(profile: any) {
+  if (!profile) {
+    return { success: false, message: "Profile data is required" };
+  }
+
   try {
-    // Extract user information
-    const subject = userData.subjects?.[0] || '';
-    const interests = userData.interests || '';
-    const skills = userData.skills || '';
-    const goal = userData.goal || '';
-    
-    // Create a prompt for the Gemini model
-    const prompt = `You are a professional career coach assistant for a student with the following profile:
-    - Subject: ${subject}
-    - Interests: ${interests}
-    - Skills: ${skills}
-    - Career Goal: ${goal}
-    
-    The student has asked: "${message}"
-    
-    Provide a helpful, supportive, and informative response that:
-    1. Addresses their question directly
-    2. Gives practical advice related to their academic and career interests
-    3. Is encouraging and positive
-    4. Is concise (max 150 words)
-    
-    Your response should be in a conversational tone as if you're having a direct chat with the student.`;
-    
-    // Generate a response using the Gemini model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash"" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const prompt = `Given this user profile: ${JSON.stringify(profile)}, suggest 3 learning recommendations.`;
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Error generating chat response with Gemini:", error);
-    return "I'm sorry, I'm having trouble connecting to my knowledge base right now. What specific career advice can I help you with regarding your studies or job preparation?";
-  }
-}
+    const text = response.text();
 
-/**
- * Fallback course if API call fails
- */
-function getFallbackCourse(subject: string): { title: string; description: string; duration: string; level: string; url: string } {
-  if (subject === 'Computer Science') {
-    return {
-      title: "Data Structures and Algorithms",
-      description: "Master the core concepts needed for technical interviews and build a strong foundation in computer science fundamentals.",
-      duration: "10 weeks",
-      level: "Intermediate",
-      url: "https://career-courses.com/computer-science-algorithms"
-    };
-  } else if (subject === 'Biology') {
-    return {
-      title: "Introduction to Biotechnology",
-      description: "Learn the foundations of modern biotechnology applications and techniques used in research and industry.",
-      duration: "8 weeks",
-      level: "Beginner",
-      url: "https://career-courses.com/biotechnology-intro"
-    };
-  } else if (subject === 'Literature') {
-    return {
-      title: "Contemporary Literary Analysis",
-      description: "Develop critical analysis skills for modern literature and enhance your writing capabilities.",
-      duration: "6 weeks",
-      level: "Intermediate",
-      url: "https://career-courses.com/literary-analysis"
-    };
-  } else {
-    return {
-      title: `${subject} Career Development`,
-      description: `Learn essential skills and knowledge to advance your career in ${subject}.`,
-      duration: "8 weeks",
-      level: "Beginner",
-      url: `https://career-courses.com/${subject.toLowerCase().replace(/\s+/g, '-')}`
+    const recommendations = text.split('\n').filter(Boolean);
+
+    if (recommendations.length === 0) {
+      return { success: false, message: "No recommendations generated" };
+    }
+
+    return { success: true, recommendations };
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Failed to generate recommendations"
     };
   }
 }
