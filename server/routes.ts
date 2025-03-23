@@ -9,6 +9,109 @@ import { fetchYoutubeRecommendations } from "./lib/youtube";
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   
+  // Authentication
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and password are required"
+        });
+      }
+      
+      // Find user by email (used as username)
+      const user = await storage.getUserByUsername(email);
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid email or password"
+        });
+      }
+      
+      // In a real app, use bcrypt to compare passwords
+      if (user.password !== password) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid email or password"
+        });
+      }
+      
+      // Check if user has completed profile setup
+      const hasProfile = Boolean(user.subjects && user.interests);
+      
+      return res.json({
+        success: true,
+        message: "Login successful",
+        userId: user.id,
+        hasProfile
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Login failed"
+      });
+    }
+  });
+  
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and password are required"
+        });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already registered"
+        });
+      }
+      
+      // Create new user
+      try {
+        const user = await storage.createUser({
+          username: email,
+          password: password, // In a real app, hash this password
+          email: email,
+          subjects: [],
+          interests: "",
+          skills: "",
+          goal: "",
+          thinking_style: "Plan"
+        });
+        
+        return res.json({
+          success: true,
+          message: "Registration successful",
+          userId: user.id
+        });
+      } catch (createError) {
+        console.error("Error creating user:", createError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create user"
+        });
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Registration failed"
+      });
+    }
+  });
+  
+  
   // Survey submission
   app.post("/api/survey", async (req: Request, res: Response) => {
     try {
