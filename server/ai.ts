@@ -92,7 +92,13 @@ export async function generateCourseRecommendation(user: User): Promise<{ title:
   try {
     if (!GEMINI_API_KEY) {
       console.log("No Gemini API key available. Using fallback course.");
-      return getFallbackCourse(user.subjects?.[0] || "");
+      return {
+        title: "No Course Found",
+        description: "No course recommendation available.",
+        duration: "N/A",
+        level: "N/A",
+        url: "N/A"
+      };
     }
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
@@ -144,10 +150,22 @@ export async function generateCourseRecommendation(user: User): Promise<{ title:
       console.error("Error parsing course recommendation:", err);
     }
 
-    return getFallbackCourse(user.subjects?.[0] || "");
+    return {
+      title: "No Course Found",
+      description: "No course recommendation available.",
+      duration: "N/A",
+      level: "N/A",
+      url: "N/A"
+    };
   } catch (error) {
     console.error("Error generating course recommendation:", error);
-    return getFallbackCourse(user.subjects?.[0] || "");
+    return {
+      title: "No Course Found",
+      description: "No course recommendation available.",
+      duration: "N/A",
+      level: "N/A",
+      url: "N/A"
+    };
   }
 }
 
@@ -155,7 +173,12 @@ export async function getVideoRecommendation(subject: string): Promise<{ title: 
   try {
     if (!YOUTUBE_API_KEY) {
       console.log("No YouTube API key available. Using fallback video.");
-      return getFallbackVideo(subject);
+      return {
+        title: "No Video Found",
+        description: "No video recommendation available.",
+        url: "N/A",
+        channelTitle: "N/A"
+      };
     }
 
     const query = encodeURIComponent(`${subject} career development tutorial`);
@@ -178,10 +201,20 @@ export async function getVideoRecommendation(subject: string): Promise<{ title: 
       };
     }
 
-    return getFallbackVideo(subject);
+    return {
+      title: "No Video Found",
+      description: "No video recommendation available.",
+      url: "N/A",
+      channelTitle: "N/A"
+    };
   } catch (error) {
     console.error("Error fetching video recommendation:", error);
-    return getFallbackVideo(subject);
+    return {
+      title: "No Video Found",
+      description: "No video recommendation available.",
+      url: "N/A",
+      channelTitle: "N/A"
+    };
   }
 }
 
@@ -189,7 +222,7 @@ export async function getCareeTrends(subject: string): Promise<any[]> {
   try {
     if (!GEMINI_API_KEY) {
       console.log("No Gemini API key available. Using fallback trends.");
-      return getFallbackTrends(subject);
+      return [];
     }
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
@@ -244,10 +277,10 @@ export async function getCareeTrends(subject: string): Promise<any[]> {
       console.error("Error parsing trends response:", err);
     }
 
-    return getFallbackTrends(subject);
+    return [];
   } catch (error) {
     console.error("Error generating trends:", error);
-    return getFallbackTrends(subject);
+    return [];
   }
 }
 
@@ -296,200 +329,4 @@ export async function getChatResponse(message: string, userData: Partial<User>):
     console.error("Error generating chat response:", error);
     return "I'm sorry, I encountered an error. Please try again later.";
   }
-}
-
-// Fallback functions when API is not available
-function getFallbackGoals(subject: string): string[] {
-  const generalGoals = [
-    "Complete an online course in your field",
-    "Read an academic journal article weekly",
-    "Join a professional association",
-    "Attend a virtual career fair",
-    "Build a portfolio of your work"
-  ];
-
-  const subjectGoals: Record<string, string[]> = {
-    "Computer Science": [
-      "Build a personal coding project",
-      "Contribute to an open source project",
-      "Learn a new programming language",
-      "Complete a data structures course",
-      "Join a hackathon"
-    ],
-    "Biology": [
-      "Learn PCR techniques",
-      "Read a research paper on genetics",
-      "Practice lab safety procedures",
-      "Join biology research discussion forum",
-      "Study cell culture techniques"
-    ],
-    "Literature": [
-      "Analyze a classic literary work",
-      "Write a short story or poem weekly",
-      "Start a literary analysis blog",
-      "Join a writing workshop",
-      "Learn literary criticism methods"
-    ],
-    "Engineering": [
-      "Complete a CAD design project",
-      "Study material properties",
-      "Build a prototype of a simple device",
-      "Learn engineering standards",
-      "Practice problem-solving methodologies"
-    ]
-  };
-
-  return subjectGoals[subject] || generalGoals;
-}
-
-function getFallbackCourse(subject: string): { title: string; description: string; duration: string; level: string; url: string } {
-  const generalCourse = {
-    title: "Career Development Essentials",
-    description: "Learn the fundamentals of career planning and growth",
-    duration: "4 weeks",
-    level: "Beginner",
-    url: "https://www.coursera.org/learn/career-development"
-  };
-
-  const subjectCourses: Record<string, any> = {
-    "Computer Science": {
-      title: "Introduction to Computer Science",
-      description: "Learn programming fundamentals and computational thinking",
-      duration: "8 weeks",
-      level: "Beginner",
-      url: "https://www.edx.org/learn/computer-science/harvard-university-cs50-s-introduction-to-computer-science"
-    },
-    "Biology": {
-      title: "Introduction to Biology - The Secret of Life",
-      description: "Explore the principles of biochemistry, genetics, molecular biology, and more",
-      duration: "16 weeks",
-      level: "Intermediate",
-      url: "https://www.edx.org/learn/biology/massachusetts-institute-of-technology-introduction-to-biology-the-secret-of-life"
-    },
-    "Literature": {
-      title: "Introduction to Literary Theory",
-      description: "Explore different approaches to interpreting literature",
-      duration: "6 weeks",
-      level: "Intermediate",
-      url: "https://www.coursera.org/learn/literary-theory"
-    },
-    "Engineering": {
-      title: "Engineering Mechanics",
-      description: "Master the fundamentals of engineering physics and design",
-      duration: "10 weeks",
-      level: "Intermediate",
-      url: "https://www.edx.org/learn/engineering/mit-a-hands-on-introduction-to-engineering-simulations"
-    }
-  };
-
-  return subjectCourses[subject] || generalCourse;
-}
-
-function getFallbackVideo(subject: string): { title: string; description: string; url: string; thumbnailUrl?: string; channelTitle?: string } {
-  const generalVideo = {
-    title: "How to Plan Your Career Path",
-    description: "Expert advice on planning your career journey",
-    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    channelTitle: "Career Insights"
-  };
-
-  const subjectVideos: Record<string, any> = {
-    "Computer Science": {
-      title: "Map of Computer Science",
-      description: "Overview of the various fields within computer science",
-      url: "https://www.youtube.com/watch?v=SzJ46YA_RaA",
-      channelTitle: "Domain of Science"
-    },
-    "Biology": {
-      title: "Biology Career Opportunities",
-      description: "Explore various career paths in biological sciences",
-      url: "https://www.youtube.com/watch?v=3PaPtSpXoFk",
-      channelTitle: "Science Explained"
-    },
-    "Literature": {
-      title: "Careers for Literature Majors",
-      description: "Beyond teaching: career options for literature graduates",
-      url: "https://www.youtube.com/watch?v=iq8Sa2Uw_Xw",
-      channelTitle: "Literary Insights"
-    },
-    "Engineering": {
-      title: "Engineering Fields Explained",
-      description: "Overview of different engineering specializations",
-      url: "https://www.youtube.com/watch?v=btGYcizV0iI",
-      channelTitle: "Engineering Academy"
-    }
-  };
-
-  return subjectVideos[subject] || generalVideo;
-}
-
-function getFallbackTrends(subject: string): any[] {
-  const generalTrends = [
-    {
-      id: "gen1",
-      title: "Remote Work Continues to Reshape Industries",
-      description: "Companies are adapting policies for long-term remote work options",
-      type: "article",
-      url: "https://www.linkedin.com/news/story/remote-work-reshaping-careers"
-    },
-    {
-      id: "gen2",
-      title: "Skills-Based Hiring on the Rise",
-      description: "Employers focus more on skills than degrees for new hires",
-      type: "post",
-      metrics: {
-        like_count: 1240,
-        retweet_count: 350,
-        reply_count: 95
-      },
-      url: "https://www.indeed.com/career-advice/finding-a-job/skills-based-hiring"
-    }
-  ];
-
-  const subjectTrends: Record<string, any[]> = {
-    "Computer Science": [
-      {
-        id: "cs1",
-        title: "AI Skills Demand Surges 38% in 2023",
-        description: "Companies seek professionals with expertise in machine learning and AI development",
-        type: "article",
-        url: "https://www.linkedin.com/news/story/ai-skills-demand-soars-4298632/"
-      },
-      {
-        id: "cs2",
-        title: "Cybersecurity Professionals Face Growing Challenges",
-        description: "New threats emerge as remote work expands company vulnerabilities",
-        type: "post",
-        metrics: {
-          like_count: 1876,
-          retweet_count: 423,
-          reply_count: 156
-        },
-        url: "https://www.indeed.com/career-advice/career-development/cybersecurity-challenges"
-      }
-    ],
-    "Biology": [
-      {
-        id: "bio1",
-        title: "Biotech Job Market Expected to Grow 10% in 2023",
-        description: "New report shows increasing demand for biotechnology professionals",
-        type: "article",
-        url: "https://www.biospace.com/article/careers/"
-      },
-      {
-        id: "bio2",
-        title: "Breakthrough in Genomic Sequencing Techniques",
-        description: "New methods could revolutionize personalized medicine approaches",
-        type: "post",
-        metrics: {
-          like_count: 1243,
-          retweet_count: 456,
-          reply_count: 87
-        },
-        url: "https://www.bls.gov/ooh/life-physical-and-social-science/biological-technicians.htm"
-      }
-    ]
-  };
-
-  return subjectTrends[subject] || generalTrends;
 }
