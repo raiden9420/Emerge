@@ -2,7 +2,7 @@
 
 Emerge is a comprehensive career development platform designed to guide users through their professional journey. It features personalized goal tracking, AI-powered career coaching, and tailored resource recommendations to help users achieve their career aspirations.
 
-## 🚀 Features
+## Features
 
 - **Personalized Dashboard**: A central hub to track your career progress, ongoing goals, and recent activities.
 - **AI Career Coach**: Interact with an intelligent AI coach (powered by Google Gemini) for personalized career advice, resume tips, and interview preparation.
@@ -12,7 +12,7 @@ Emerge is a comprehensive career development platform designed to guide users th
 - **Progress Tracking**: Visualize your growth with streak counters, level progression, and activity logs.
 - **Responsive Design**: A modern, mobile-friendly interface built with Shadcn UI and Tailwind CSS.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: 
   - React
@@ -34,7 +34,7 @@ Emerge is a comprehensive career development platform designed to guide users th
 - **Language**: 
   - TypeScript
 
-## 🏁 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -79,7 +79,7 @@ npm run dev
 
 The application will be available at `http://localhost:5000`.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Emerge/
@@ -98,10 +98,3 @@ Emerge/
 └── drizzle.config.ts       # Drizzle ORM configuration
 ```
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
